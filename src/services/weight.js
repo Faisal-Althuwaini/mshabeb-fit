@@ -141,13 +141,23 @@ async function getUsersWithReminderDue(hour, minute) {
   if (error) throw error;
   if (!data || data.length === 0) return [];
 
-  const targetMinutes = hour * 60 + minute;
   return data
     .filter((u) => {
       const [h, m] = (u.reminder_time || '').split(':').map(Number);
       return h === hour && m === minute;
     })
     .map((u) => u.telegram_user_id);
+}
+
+async function getAllUserIds() {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('users')
+    .select('telegram_user_id');
+
+  if (error) throw error;
+  if (!data || data.length === 0) return [];
+  return data.map((u) => u.telegram_user_id);
 }
 
 module.exports = {
@@ -158,6 +168,7 @@ module.exports = {
   getDayOverDay,
   getTodayWeight,
   getUsersWithReminderDue,
+   getAllUserIds,
   toDateString,
   startOfWeek,
 };
