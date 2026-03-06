@@ -2,7 +2,7 @@ const express = require('express');
 const { Telegraf } = require('telegraf');
 const { getConfig } = require('./config.js');
 const { startReminderScheduler } = require('./scheduler.js');
-const { handleStart, commandsInlineKeyboard } = require('./handlers/start.js');
+const { handleStart, commandsInlineKeyboard, mainReplyKeyboard } = require('./handlers/start.js');
 const { handleWeightCommand, handlePlainNumber } = require('./handlers/weight.js');
 const { handleProgress } = require('./handlers/progress.js');
 const { handleCompare, handleCompareWeek, handleCompareDay } = require('./handlers/compare.js');
@@ -20,7 +20,12 @@ bot.command('stats', handleProgress);
 bot.command('compare', handleCompare);
 bot.command('motivate', handleMotivate);
 bot.command('reminder', handleReminder);
-bot.command('menu', (ctx) => ctx.reply('اختر أمراً:', commandsInlineKeyboard()));
+bot.command('menu', (ctx) =>
+  ctx.reply('اختر أمراً من الأزرار أو من هذه القائمة:', {
+    ...commandsInlineKeyboard(),
+    ...mainReplyKeyboard(),
+  })
+);
 
 bot.on('text', async (ctx, next) => {
   const text = (ctx.message?.text || '').trim();

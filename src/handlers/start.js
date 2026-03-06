@@ -20,6 +20,15 @@ function commandsInlineKeyboard() {
   ]);
 }
 
+function mainReplyKeyboard() {
+  return Markup.keyboard([
+    ['/weight', '/progress'],
+    ['/compare week', '/compare day'],
+    ['/motivate', '/reminder'],
+    ['/menu'],
+  ]).resize();
+}
+
 async function handleStart(ctx) {
   const from = ctx.from;
   if (!from) return ctx.reply('تعذر التعرف عليك.');
@@ -57,7 +66,11 @@ async function handleStart(ctx) {
 استمر بتسجيل وزنك كل يوم لمتابعة تقدمك!
   `.trim();
 
-  return ctx.reply(welcome, commandsInlineKeyboard());
+  await ctx.reply(welcome, commandsInlineKeyboard());
+  return ctx.reply(
+    'يمكنك استخدام الأزرار في الأسفل أو من القائمة هنا لاختيار الأوامر.',
+    mainReplyKeyboard()
+  );
 }
 
-module.exports = { handleStart, commandsInlineKeyboard };
+module.exports = { handleStart, commandsInlineKeyboard, mainReplyKeyboard };
