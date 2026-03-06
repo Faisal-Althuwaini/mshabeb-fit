@@ -22,10 +22,10 @@ function commandsInlineKeyboard() {
 
 function mainReplyKeyboard() {
   return Markup.keyboard([
-    ['/weight', '/progress'],
-    ['/compare week', '/compare day'],
-    ['/motivate', '/reminder'],
-    ['/menu'],
+    ['➕ سجّل وزن', '📊 التقدم'],
+    ['📈 مقارنة أسبوع', '📉 مقارنة يوم'],
+    ['🔥 تحفيز', '⏰ التذكير اليومي'],
+    ['📋 القائمة الرئيسية'],
   ]).resize();
 }
 

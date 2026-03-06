@@ -20,12 +20,10 @@ bot.command('stats', handleProgress);
 bot.command('compare', handleCompare);
 bot.command('motivate', handleMotivate);
 bot.command('reminder', handleReminder);
-bot.command('menu', (ctx) =>
-  ctx.reply('اختر أمراً من الأزرار أو من هذه القائمة:', {
-    ...commandsInlineKeyboard(),
-    ...mainReplyKeyboard(),
-  })
-);
+bot.command('menu', async (ctx) => {
+  await ctx.reply('اختر أمراً من هذه القائمة:', commandsInlineKeyboard());
+  return ctx.reply('يمكنك أيضاً استخدام الأزرار في الأسفل:', mainReplyKeyboard());
+});
 
 bot.on('text', async (ctx, next) => {
   const text = (ctx.message?.text || '').trim();
@@ -33,6 +31,19 @@ bot.on('text', async (ctx, next) => {
     return handlePlainNumber(ctx);
   }
   return next();
+});
+
+bot.hears('➕ سجّل وزن', (ctx) =>
+  ctx.reply('أرسل وزنك هكذا:\n/weight 72.5\n\nأو أرسل الرقم فقط مثل: 72.5')
+);
+
+bot.hears('📊 التقدم', (ctx) => handleProgress(ctx));
+bot.hears('📈 مقارنة أسبوع', (ctx) => handleCompareWeek(ctx));
+bot.hears('📉 مقارنة يوم', (ctx) => handleCompareDay(ctx));
+bot.hears('🔥 تحفيز', (ctx) => handleMotivate(ctx));
+bot.hears('📋 القائمة الرئيسية', async (ctx) => {
+  await ctx.reply('اختر أمراً من هذه القائمة:', commandsInlineKeyboard());
+  return ctx.reply('يمكنك أيضاً استخدام الأزرار في الأسفل:', mainReplyKeyboard());
 });
 
 function safeAnswerCbQuery(ctx) {
