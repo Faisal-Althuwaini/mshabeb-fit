@@ -1,7 +1,24 @@
 const { ensureUser } = require('../services/weight.js');
 const { getReminder, setReminder } = require('./reminder.js');
+const { Markup } = require('telegraf');
 
 const DEFAULT_REMINDER_TIME = '08:00'; // 8:00 AM UTC daily
+
+function commandsInlineKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('➕ سجّل وزن', 'cmd_weight')],
+    [Markup.button.callback('📊 التقدم', 'cmd_progress')],
+    [
+      Markup.button.callback('📈 مقارنة أسبوع', 'cmd_compare_week'),
+      Markup.button.callback('📉 مقارنة يوم', 'cmd_compare_day'),
+    ],
+    [
+      Markup.button.callback('⏰ التذكير', 'cmd_reminder'),
+      Markup.button.callback('🛑 إيقاف التذكير', 'cmd_reminder_off'),
+    ],
+    [Markup.button.callback('🔥 تحفيز', 'cmd_motivate')],
+  ]);
+}
 
 async function handleStart(ctx) {
   const from = ctx.from;
@@ -40,7 +57,7 @@ async function handleStart(ctx) {
 استمر بتسجيل وزنك كل يوم لمتابعة تقدمك!
   `.trim();
 
-  return ctx.reply(welcome);
+  return ctx.reply(welcome, commandsInlineKeyboard());
 }
 
-module.exports = { handleStart };
+module.exports = { handleStart, commandsInlineKeyboard };

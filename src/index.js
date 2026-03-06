@@ -2,12 +2,12 @@ const express = require('express');
 const { Telegraf } = require('telegraf');
 const { getConfig } = require('./config.js');
 const { startReminderScheduler } = require('./scheduler.js');
-const { handleStart } = require('./handlers/start.js');
+const { handleStart, commandsInlineKeyboard } = require('./handlers/start.js');
 const { handleWeightCommand, handlePlainNumber } = require('./handlers/weight.js');
 const { handleProgress } = require('./handlers/progress.js');
-const { handleCompare } = require('./handlers/compare.js');
+const { handleCompare, handleCompareWeek, handleCompareDay } = require('./handlers/compare.js');
 const { handleMotivate } = require('./handlers/motivate.js');
-const { handleReminder } = require('./handlers/reminder.js');
+const { handleReminder, getReminder, setReminder } = require('./handlers/reminder.js');
 
 const { BOT_TOKEN } = getConfig();
 const bot = new Telegraf(BOT_TOKEN);
@@ -20,6 +20,7 @@ bot.command('stats', handleProgress);
 bot.command('compare', handleCompare);
 bot.command('motivate', handleMotivate);
 bot.command('reminder', handleReminder);
+bot.command('menu', (ctx) => ctx.reply('اختر أمراً:', commandsInlineKeyboard()));
 
 bot.on('text', async (ctx, next) => {
   const text = (ctx.message?.text || '').trim();
@@ -27,6 +28,71 @@ bot.on('text', async (ctx, next) => {
     return handlePlainNumber(ctx);
   }
   return next();
+});
+
+function safeAnswerCbQuery(ctx) {
+  return ctx.answerCbQuery?.().catch(() => {});
+}
+
+bot.action('cmd_weight', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return ctx.reply('أرسل وزنك هكذا:\n/weight 72.5\n\nأو أرسل الرقم فقط مثل: 72.5');
+});
+
+bot.action('cmd_progress', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return handleProgress(ctx);
+});
+
+bot.action('cmd_compare_week', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return handleCompareWeek(ctx);
+});
+
+bot.action('cmd_compare_day', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return handleCompareDay(ctx);
+});
+
+bot.action('cmd_motivate', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return handleMotivate(ctx);
+});
+
+bot.action('cmd_reminder', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  const from = ctx.from;
+  if (!from) return ctx.reply('تعذر التعرف عليك.');
+
+  const current = await getReminder(from.id);
+  if (current.enabled && current.time) {
+    return ctx.reply(
+      `التذكير اليومي مضبوط على الساعة ${current.time} (بتوقيت السيرفر).\n\n` +
+        'لتغيير الموعد: /reminder الساعة:الدقيقة (مثلاً 08:00)\n' +
+        'للإيقاف: /reminder off'
+    );
+  }
+
+  return ctx.reply(
+    'ضبط تذكير يومي لتسجيل وزنك.\n\n' +
+      'الاستخدام: /reminder الساعة:الدقيقة (مثلاً 08:00)\n' +
+      'التوقيت بتوقيت UTC. مثال: 08:00 = الثامنة صباحاً UTC.\n\n' +
+      'ملاحظة: تيليجرام يوصّل الرسائل فقط لمَن تفاعل مع البوت خلال آخر 24 ساعة.'
+  );
+});
+
+bot.action('cmd_reminder_off', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  const from = ctx.from;
+  if (!from) return ctx.reply('تعذر التعرف عليك.');
+
+  try {
+    await setReminder(from.id, null, false);
+    return ctx.reply('تم إيقاف التذكير اليومي.');
+  } catch (e) {
+    console.error('reminder off error:', e);
+    return ctx.reply('حدث خطأ.');
+  }
 });
 
 bot.catch((err, ctx) => {
