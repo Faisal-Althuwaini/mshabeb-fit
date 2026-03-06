@@ -1,0 +1,15 @@
+# Render – Web Service (يحتاج عنوان عام حتى يصل له طلب Supabase كل بضع دقائق)
+# انشر المشروع من لوحة Render أو اربط ريبو GitHub واختر "Blueprint"
+services:
+  - type: web
+    name: mashbub-weight-bot
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

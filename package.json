@@ -1,0 +1,19 @@
+{
+  "name": "telegram-fitness-tracker",
+  "version": "1.0.0",
+  "description": "Telegram bot to track daily weight, weekly averages, and progress with Supabase backend",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "keywords": ["telegram", "bot", "weight", "fitness", "supabase"],
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "@supabase/supabase-js": "^2.39.0",
+    "telegraf": "^4.16.3"
+  }
+}
