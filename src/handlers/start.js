@@ -2,7 +2,7 @@ const { ensureUser } = require('../services/weight.js');
 const { getReminder, setReminder } = require('./reminder.js');
 const { Markup } = require('telegraf');
 
-const DEFAULT_REMINDER_TIME = '08:00'; // 8:00 AM UTC daily
+const DEFAULT_REMINDER_TIME = '08:00'; // 8:00 AM Saudi Arabia time (UTC+3) daily
 
 function commandsInlineKeyboard() {
   return Markup.inlineKeyboard([
@@ -52,7 +52,7 @@ async function handleStart(ctx) {
   const welcome = `
 مرحباً في مشبب — متتبع الوزن!
 
-سأذكّرك كل يوم الساعة 8:00 صباحاً (UTC) بتسجيل وزنك. لتغيير الموعد: /reminder الساعة:الدقيقة (مثلاً 09:30). للإيقاف: /reminder off
+سأذكّرك كل يوم الساعة 8:00 صباحاً (بتوقيت السعودية) بتسجيل وزنك. لتغيير الموعد: /reminder الساعة:الدقيقة (مثلاً 09:30). للإيقاف: /reminder off
 
 ماذا يمكنك أن تفعل:
 

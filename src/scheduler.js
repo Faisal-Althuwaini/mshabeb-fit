@@ -2,12 +2,15 @@ const cron = require('node-cron');
 const weightService = require('./services/weight.js');
 const { getMotivational, getTrendMessage } = require('./messages.js');
 
+const KSA_OFFSET_MS = 3 * 60 * 60 * 1000; // Saudi Arabia is UTC+3, no DST
+
 function startReminderScheduler(bot) {
   // Daily reminder every minute (checks who يجب أن يرسَل لهم التذكير في هذه الدقيقة)
   cron.schedule('* * * * *', async () => {
     const now = new Date();
-    const hour = now.getUTCHours();
-    const minute = now.getUTCMinutes();
+    const ksaNow = new Date(now.getTime() + KSA_OFFSET_MS);
+    const hour = ksaNow.getUTCHours();
+    const minute = ksaNow.getUTCMinutes();
 
     let userIds = [];
     try {
@@ -33,12 +36,13 @@ function startReminderScheduler(bot) {
     }
   });
 
-  console.log('Reminder scheduler started (runs every minute, UTC).');
+  console.log('Reminder scheduler started (runs every minute, checks against Saudi Arabia time UTC+3).');
 
-  // Weekly summary every Sunday at 21:00 UTC
-  // Cron format: minute hour day-of-month month day-of-week
-  cron.schedule('0 21 * * 0', async () => {
-    console.log('Running weekly summary job (Sunday 21:00 UTC)');
+  // Weekly summary every Saturday at 21:00 Saudi Arabia time (Sat/Fri is the Saudi weekend)
+  // Cron format: minute hour day-of-month month day-of-week (runs on server clock, assumed UTC)
+  // 21:00 KSA (UTC+3) = 18:00 UTC, Saturday = day-of-week 6
+  cron.schedule('0 18 * * 6', async () => {
+    console.log('Running weekly summary job (Saturday 21:00 Saudi Arabia time)');
     let userIds = [];
 
     try {
@@ -87,7 +91,7 @@ function startReminderScheduler(bot) {
     }
   });
 
-  console.log('Weekly summary scheduler started (Sundays 21:00 UTC).');
+  console.log('Weekly summary scheduler started (Saturdays 21:00 Saudi Arabia time).');
 }
 
 module.exports = { startReminderScheduler };

@@ -52,7 +52,7 @@ async function handleReminder(ctx) {
     const current = await getReminder(from.id);
     if (current.enabled && current.time) {
       return ctx.reply(
-        `التذكير اليومي مضبوط على الساعة ${current.time} (بتوقيت السيرفر).\n\n` +
+        `التذكير اليومي مضبوط على الساعة ${current.time} (بتوقيت السعودية).\n\n` +
           'لتغيير الموعد: /reminder الساعة:الدقيقة (مثلاً 08:00)\n' +
           'للإيقاف: /reminder off'
       );
@@ -60,7 +60,7 @@ async function handleReminder(ctx) {
     return ctx.reply(
       'ضبط تذكير يومي لتسجيل وزنك.\n\n' +
         'الاستخدام: /reminder الساعة:الدقيقة (مثلاً 08:00)\n' +
-        'التوقيت بتوقيت UTC. مثال: 08:00 = الثامنة صباحاً UTC.\n\n' +
+        'التوقيت بتوقيت السعودية (UTC+3). مثال: 08:00 = الثامنة صباحاً بتوقيت السعودية.\n\n' +
         'ملاحظة: تيليجرام يوصّل الرسائل فقط لمَن تفاعل مع البوت خلال آخر 24 ساعة.'
     );
   }
@@ -83,7 +83,7 @@ async function handleReminder(ctx) {
   try {
     await setReminder(from.id, timeStr, true);
     return ctx.reply(
-      `تم ضبط التذكير اليومي على الساعة ${timeStr} (UTC). سأرسلك تذكيراً لتسجيل وزنك في هذا الموعد.\n\n` +
+      `تم ضبط التذكير اليومي على الساعة ${timeStr} (بتوقيت السعودية). سأرسلك تذكيراً لتسجيل وزنك في هذا الموعد.\n\n` +
         getMotivational()
     );
   } catch (e) {
