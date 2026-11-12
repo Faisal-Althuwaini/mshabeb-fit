@@ -3,6 +3,14 @@
 [build]
   publish = "dist"
 
+# The app lives on its own domain; send the default netlify.app address there so the
+# home-screen app, login and notifications all use one origin.
+[[redirects]]
+  from = "https://mushabbab-coach.netlify.app/*"
+  to = "https://mushabbab.faisalalthuwaini.sa/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -118,6 +118,10 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 - **PWA** in `pwa/` (Vite + React + TS, vite-plugin-pwa injectManifest, Recharts, idb-keyval offline queue). App icon and avatar come from `pwa/assets/mushabbab.jpg` (`npm run icons`). A dev-only demo mode (`?demo=owner` / `?demo=watcher`) shows fake data; it's stripped from production builds.
 - **Bot**: Telegram photos become meal posts, or private flex photos when the caption starts with «فليكس». `src/notifier.js` sends Web Push for comments (one by one), reactions (at most one push per 30 min per person) and the 3-quiet-days note (outside quiet hours, not while paused).
 
+## Live URLs (2026-11-12)
+- **App:** https://mushabbab.faisalalthuwaini.sa. Netlify site `mushabbab-coach`, with DNS on Netlify DNS (zone `faisalalthuwaini.sa`) and a wildcard Let's Encrypt certificate. The old address `mushabbab-coach.netlify.app` 301-redirects here so there's only one origin (home-screen storage, login and push subscriptions are all per origin).
+- **Supabase Auth Site URL:** https://mushabbab.faisalalthuwaini.sa ("Confirm email" off).
+
 ## Deploy order for M2
 1. Supabase dashboard → Authentication → Sign In / Providers → Email: turn **"Confirm email" off** (D13).
 2. VPS: add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` to `.env` (same values as the local `.env`), then `git pull`, `npm install`, `pm2 restart mshabib-bot`.
