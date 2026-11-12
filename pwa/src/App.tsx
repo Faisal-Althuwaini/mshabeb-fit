@@ -55,6 +55,15 @@ export default function App() {
   }, []);
 
   const refreshWho = useCallback(async () => {
+    // Instant start: show what this device saw last time, then refresh from the server.
+    const [cw] = await Promise.all([data.cachedWhoami()]);
+    if (cw) {
+      setWho((cur) => cur ?? cw);
+      if (cw.telegram_user_id && cw.coach_enabled) {
+        const cs = await data.cachedSettings(cw.telegram_user_id);
+        if (cs) setSettings((cur) => cur ?? cs);
+      }
+    }
     try {
       setLoadError(null);
       const w = await data.whoami();
@@ -83,6 +92,14 @@ export default function App() {
     if (w) return { ownerId: w.owner_user_id, name: w.first_name || 'صاحبك', isOwner: false, settings: w };
     return null;
   }, [who, settings, watchIdx]);
+
+  // Paint the last cached bundle immediately when the subject changes.
+  useEffect(() => {
+    if (!subject || DEMO) return;
+    let alive = true;
+    data.cachedBundle(subject.ownerId).then((b) => { if (alive && b) setBundle((cur) => cur ?? b); });
+    return () => { alive = false; };
+  }, [subject?.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     if (!subject || DEMO) return;

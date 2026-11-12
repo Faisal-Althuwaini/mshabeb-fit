@@ -20,7 +20,10 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
   const bottom = useRef<HTMLDivElement>(null);
 
   const load = () => data.loadCoachMessages(subject.ownerId).then(setMsgs).catch((e) => toast(e.message));
-  useEffect(() => { load(); }, [subject.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    data.cachedCoachMessages(subject.ownerId).then((c) => { if (c) setMsgs((cur) => cur ?? c); });
+    load();
+  }, [subject.ownerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const report = useMemo(() => msgs?.find((m) => m.kind === 'weekly_report'), [msgs]);
   const alert = useMemo(() => msgs?.find((m) => m.kind === 'trend_alert' && S.daysBetween(m.created_at.slice(0, 10), today) <= 7), [msgs, today]);

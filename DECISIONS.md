@@ -124,6 +124,14 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 - **Chat:** the Supabase edge function `coach-chat`. JWT required, but verified **in code** (`auth.getUser`) and deployed with `--no-verify-jwt` (`npm run deploy:chat`), because this project signs user tokens with the new asymmetric keys, which the gateway check rejected. It uses the caller's JWT, so RLS applies. It allows coach users only, 30 `chat_user` messages per local day, context = shared context + the last 10 turns, and calls OpenRouter (DeepSeek V4.1 Flash, falling back to gpt-oss-120b) with a 20 s timeout. If there's no key or it fails, the reply is a friendly fallback. Both turns are logged in `coach_messages`. CORS allows the app domain and localhost:5173. **Secret:** `OPENROUTER_API_KEY` must be set in Supabase function secrets (separate from the VPS `.env`).
 - **Weekly report:** the coach tick sends it on `weekly_report_dow` at `weekly_report_time` (±3 h, outside quiet hours), once per week (`coach_messages.week_start`). The LLM JSON is validated; if invalid it re-asks once, otherwise it uses the template. It's rendered in code, sent via Telegram + push, and logged with `data.report` for the app card. The trend alert goes out with it when due (once per week). `/report` uses the same builder. The legacy Saturday cron now skips coach users.
 
+### D22. Speed: the database is in Sydney, so the app paints from cache and loads in one round trip
+Measured from Riyadh: each Supabase request answers in **0.6–2.6 s** (project region `ap-southeast-2`, Sydney). Mitigations in the app:
+- **Cache-first start:** `whoami`, settings, the bundle and coach messages are cached in IndexedDB and shown immediately on open, then refreshed in the background.
+- **One round trip:** RPC `get_bundle(p_owner)` (migration `20261112400000`, SECURITY INVOKER so RLS applies; verified owner vs stranger) replaces 9 parallel selects.
+- **Instant writes (optimistic UI):** reactions, comments, switches, weight and flex share update locally and sync in the background (`mutate` + a debounced `refreshSoon`), with rollback on failure.
+- **Service worker** calls `skipWaiting()` + `clients.claim()`, so new versions apply on the next open.
+- **The real fix** would be moving the project to a closer region (e.g. Frankfurt or Mumbai). That means a new project plus data, auth users and storage migration, and new keys for the bot, app and function. Not done yet; Faisal to decide.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

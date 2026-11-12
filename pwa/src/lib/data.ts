@@ -13,12 +13,18 @@ const must = <T>(r: { data: T | null; error: { message: string } | null }): T =>
 };
 
 export async function whoami(): Promise<WhoAmI> {
-  return must(await supabase.rpc('whoami')) as WhoAmI;
+  const w = must(await supabase.rpc('whoami')) as WhoAmI;
+  await cacheSet('whoami', w);
+  return w;
 }
+export const cachedWhoami = () => cacheGet<WhoAmI>('whoami');
 
 export async function loadSettings(ownerId: number): Promise<Settings> {
-  return must(await supabase.from('coach_settings').select('*').eq('user_id', ownerId).single()) as Settings;
+  const st = must(await supabase.from('coach_settings').select('*').eq('user_id', ownerId).single()) as Settings;
+  await cacheSet(`settings:${ownerId}`, st);
+  return st;
 }
+export const cachedSettings = (ownerId: number) => cacheGet<Settings>(`settings:${ownerId}`);
 
 export async function saveSettings(ownerId: number, patch: Partial<Settings>) {
   must(await supabase.from('coach_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', ownerId));
@@ -38,32 +44,22 @@ export type Bundle = {
   watchers: Watcher[];
 };
 
-/** Everything for one person's feed / progress. Cached for offline use. */
+/** Everything for one person's feed / progress, in ONE round trip (RPC get_bundle). Cached on the device. */
 export async function loadBundle(ownerId: number): Promise<Bundle> {
   const key = `bundle:${ownerId}`;
   try {
-    const [w, c, m, f, e, r, cm, v, wa] = await Promise.all([
-      supabase.from('weight_entries').select('weight, recorded_at').eq('user_id', ownerId).order('recorded_at'),
-      // explicit columns: ate_out is not readable from the PWA (D14)
-      supabase.from('daily_checks').select('day, minimum_done, lifted, workout_label').eq('user_id', ownerId).order('day'),
-      supabase.from('meal_posts').select('*').eq('user_id', ownerId).order('posted_at', { ascending: false }).limit(300),
-      supabase.from('flex_photos').select('*').eq('user_id', ownerId).order('taken_on', { ascending: false }),
-      supabase.from('feed_events').select('*').eq('owner_user_id', ownerId).order('created_at', { ascending: false }).limit(50),
-      supabase.from('feed_reactions').select('owner_user_id, item_kind, item_ref, author_auth_user_id, emoji, created_at').eq('owner_user_id', ownerId),
-      supabase.from('feed_comments').select('id, owner_user_id, item_kind, item_ref, author_auth_user_id, author_name, body, created_at').eq('owner_user_id', ownerId).order('created_at'),
-      supabase.from('feed_views').select('*').eq('owner_user_id', ownerId),
-      supabase.from('watchers').select('*').eq('owner_user_id', ownerId),
-    ]);
+    const raw = must(await supabase.rpc('get_bundle', { p_owner: ownerId })) as Record<string, unknown[]>;
+    const num = (v: unknown) => (v == null ? null : Number(v));
     const bundle: Bundle = {
-      entries: must(w).map((x: { weight: number | string; recorded_at: string }) => ({ date: x.recorded_at, weight: Number(x.weight) })),
-      checks: must(c) as Check[],
-      meals: must(m) as MealPost[],
-      flex: (must(f) as FlexPhoto[]).map((x) => ({ ...x, weight_at_time: x.weight_at_time == null ? null : Number(x.weight_at_time) })),
-      events: must(e) as FeedEvent[],
-      reactions: must(r) as Reaction[],
-      comments: must(cm) as Comment[],
-      views: (v.error ? [] : v.data) as FeedView[],
-      watchers: (wa.error ? [] : wa.data) as Watcher[],
+      entries: (raw.entries as { date: string; weight: number | string }[]).map((x) => ({ date: x.date, weight: Number(x.weight) })),
+      checks: raw.checks as Check[],
+      meals: raw.meals as MealPost[],
+      flex: (raw.flex as FlexPhoto[]).map((x) => ({ ...x, weight_at_time: num(x.weight_at_time) })),
+      events: raw.events as FeedEvent[],
+      reactions: raw.reactions as Reaction[],
+      comments: raw.comments as Comment[],
+      views: raw.views as FeedView[],
+      watchers: raw.watchers as Watcher[],
     };
     await cacheSet(key, bundle);
     return bundle;
@@ -73,6 +69,9 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
     throw err;
   }
 }
+
+/** Last bundle saved on this device (instant first paint). */
+export const cachedBundle = (ownerId: number) => cacheGet<Bundle>(`bundle:${ownerId}`);
 
 // ── Owner writes ──────────────────────────────────────────────────────────
 
@@ -199,9 +198,12 @@ export async function stopWatching(ownerId: number, me: string) {
 
 export async function loadCoachMessages(ownerId: number): Promise<CoachMessage[]> {
   if (isDemo()) return demoCoachMessages() as unknown as CoachMessage[];
-  return must(await supabase.from('coach_messages').select('id, kind, content, data, created_at, used_fallback')
+  const rows = must(await supabase.from('coach_messages').select('id, kind, content, data, created_at, used_fallback')
     .eq('user_id', ownerId).order('created_at', { ascending: false }).limit(150)) as CoachMessage[];
+  await cacheSet(`coach:${ownerId}`, rows);
+  return rows;
 }
+export const cachedCoachMessages = (ownerId: number) => cacheGet<CoachMessage[]>(`coach:${ownerId}`);
 
 /** Chat with مشبب (edge function coach-chat). */
 export async function sendChat(message: string): Promise<{ reply: string; remaining: number; limited?: boolean }> {

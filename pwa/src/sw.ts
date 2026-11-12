@@ -13,6 +13,9 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')));
 self.addEventListener('message', (e) => {
   if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
+// New versions activate right away instead of waiting for every tab/home-screen instance to close.
+self.addEventListener('install', () => { self.skipWaiting(); });
+self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 
 type PushPayload = { title?: string; body?: string; url?: string; tag?: string };
 
