@@ -187,6 +187,12 @@ function handleCoach(ctx) {
 
     const patch = { coach_enabled: true, start_weight: start, goal_weight: goal.value };
     if (!settings.coach_enabled || !settings.coach_started_on) patch.coach_started_on = await coach.todayFor(settings);
+    if (!settings.coach_enabled) {
+      // The old daily reminder becomes the smart morning nudge, at the same time (D18).
+      const { getReminder } = require('./reminder.js');
+      const r = await getReminder(userId).catch(() => null);
+      if (r?.enabled && r.time) patch.morning_check_time = r.time;
+    }
     await coach.updateSettings(userId, patch);
     const steps = S.ladderSteps(start, goal.value, settings.ladder_step ?? 2);
     return ctx.reply(

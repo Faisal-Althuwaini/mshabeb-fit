@@ -24,6 +24,8 @@ function startReminderScheduler(bot) {
     for (const telegramUserId of userIds) {
       try {
         if (await coach.isPaused(telegramUserId).catch(() => false)) continue; // /pause
+        // Coach users get the smart morning nudge instead (only if they haven't logged). D18.
+        if (await coach.isCoachEnabled(telegramUserId).catch(() => false)) continue;
         await bot.telegram.sendMessage(
           telegramUserId,
           `⏰ وقت تسجيل وزنك!\n\n${getMotivational()}`

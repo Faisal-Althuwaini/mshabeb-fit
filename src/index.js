@@ -13,6 +13,7 @@ const coachHandlers = require('./handlers/coach.js');
 const { loadStats } = require('./shared.js');
 const { handlePhoto } = require('./handlers/photos.js');
 const { startNotifier } = require('./notifier.js');
+const { startCoachTick } = require('./coachTick.js');
 const cron = require('node-cron');
 const { handleProgress } = require('./handlers/progress.js');
 const { handleCompare, handleCompareWeek, handleCompareDay } = require('./handlers/compare.js');
@@ -151,6 +152,7 @@ bot.catch((err, ctx) => {
 
 startReminderScheduler(bot);
 startNotifier(cron);
+startCoachTick(cron, bot);
 
 // HTTP server so Render runs as Web Service and Supabase cron can ping to keep it awake
 const app = express();

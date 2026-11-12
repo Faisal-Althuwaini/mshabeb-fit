@@ -99,6 +99,17 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 - IBM Plex Sans Arabic (OFL) stays bundled as the fallback. A fresh clone without the Thmanyah files still renders correctly.
 - Licence reference: Thmanyah's FAQ (ask.thmanyah.com, "Thmanyah Font for Everyone") allows use in websites and apps, but not uploading or hosting the font files outside the official source.
 
+### D18. Smart nudges (M3) run in the bot; the old reminder folds into the morning nudge
+- `src/nudges.js` is a pure function: `decideNudges({settings, snapshot, nowMin, dow, sentToday, lastComebackDate})` returns the kinds due now. `src/coachTick.js` runs it **every 5 minutes** (node-cron in the bot process, D1), writes the text (DeepSeek if `DEEPSEEK_API_KEY` is set, validated, 8 s timeout, otherwise a rotating template), sends it via **Telegram + Web Push**, and logs it to `coach_messages` with `local_date`.
+- **Rules:**
+  - **Morning:** at `morning_check_time` if there's no weigh-in today.
+  - **Firm «لا تغيب مرتين»:** at `evening_check_time` when yesterday and today both have no activity (`missedDays = 2`).
+  - **Comeback:** at `evening_check_time` when `missedDays ≥ 3`, at most once every 3 days.
+  - **Lifting check:** Thursday at `evening_check_time` if lifting days are below the requirement.
+  - **Limits:** each nudge may fire up to 3 h after its time (covers restarts); at most **2 nudges per local day** (weekly report, chat and milestones don't count); nothing in quiet hours (23:00–08:00) or while paused; coach users only.
+- **Never sent twice:** a kind is never sent twice on the same local date, and failed deliveries are still logged so they can't cause a resend loop. `DRY_RUN=1` logs to the console instead of sending.
+- **The old daily reminder** (`users.reminder_time`, 08:00) no longer fires for coach users. On `/coach`, their reminder time is copied to `morning_check_time`, so the morning nudge comes at the same time but only when they haven't logged yet. Faisal's existing row was updated the same way (08:00).
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.
