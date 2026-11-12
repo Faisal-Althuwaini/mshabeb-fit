@@ -215,8 +215,10 @@ export async function sendChat(message: string): Promise<{ reply: string; remain
 }
 
 export async function latestCoachLine(ownerId: number, today: string): Promise<string | null> {
+  // Only مشبب's own messages (nudges, report, milestones) — never the chat, which has its own tab.
   const { data } = await supabase.from('coach_messages').select('content, created_at, local_date')
-    .eq('user_id', ownerId).order('created_at', { ascending: false }).limit(1);
+    .eq('user_id', ownerId).not('kind', 'in', '(chat_user,chat_coach)')
+    .order('created_at', { ascending: false }).limit(1);
   const m = data?.[0];
   if (!m) return null;
   const day = m.local_date || String(m.created_at).slice(0, 10);
