@@ -185,7 +185,9 @@ function handleCoach(ctx) {
       return ctx.reply(`الهدف (${S.toArabicDigits(goal.value)}) لازم يكون أقل من البداية (${S.toArabicDigits(start)}).`);
     }
 
-    await coach.updateSettings(userId, { coach_enabled: true, start_weight: start, goal_weight: goal.value });
+    const patch = { coach_enabled: true, start_weight: start, goal_weight: goal.value };
+    if (!settings.coach_enabled || !settings.coach_started_on) patch.coach_started_on = await coach.todayFor(settings);
+    await coach.updateSettings(userId, patch);
     const steps = S.ladderSteps(start, goal.value, settings.ladder_step ?? 2);
     return ctx.reply(
       `تم ✅ المدرب شغّال.\n` +

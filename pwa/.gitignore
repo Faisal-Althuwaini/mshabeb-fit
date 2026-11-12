@@ -1,0 +1,8 @@
+node_modules
+dist
+dev-dist
+.env
+.env.local
+
+# Thmanyah font files: deployed with the app, never committed (licence: no redistribution). See DECISIONS.md D17.
+public/fonts/thmanyah/

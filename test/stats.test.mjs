@@ -142,3 +142,24 @@ test('buildSnapshot', () => {
   assert.equal(snap.missedDays, 0);
   assert.equal(snap.totalLost, -1.2); // only last week is complete (113.2)
 });
+
+test('ladder and total lost ignore history from before the coach started', () => {
+  const settings = { start_weight: 112, goal_weight: 90, ladder_step: 2, week_start_dow: 0, coach_started_on: '2026-11-12' };
+  const entries = [
+    // March: an old attempt at ~97 kg (complete weeks)
+    { date: '2026-03-08', weight: 97 }, { date: '2026-03-09', weight: 97.2 }, { date: '2026-03-10', weight: 96.8 },
+    // September: 106 kg
+    { date: '2026-09-06', weight: 106.1 }, { date: '2026-09-07', weight: 106.3 }, { date: '2026-09-08', weight: 106 },
+    // Coach week (Sun 11-08 … Sat 11-14)
+    { date: '2026-11-10', weight: 112.1 }, { date: '2026-11-11', weight: 111.6 }, { date: '2026-11-12', weight: 111.2 },
+  ];
+  const snap = S.buildSnapshot({ entries, checks: [], settings, today: '2026-11-12' });
+  assert.deepEqual(snap.ladder.reached, [112]);
+  assert.equal(snap.ladder.next, 110);
+  assert.equal(snap.ladder.remaining_to_next, 1.6);
+  assert.equal(snap.totalLost, 0.4); // 112 − 111.6, not 112 − 97
+
+  // Without coach_started_on, all history counts (old behaviour).
+  const old = S.buildSnapshot({ entries, checks: [], settings: { ...settings, coach_started_on: null }, today: '2026-11-12' });
+  assert.ok(old.ladder.reached.includes(98));
+});

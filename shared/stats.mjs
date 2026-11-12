@@ -213,13 +213,20 @@ export function ladderSteps(start, goal, step = 2) {
   return steps;
 }
 
-/** A step is reached when any COMPLETE weekly average ≤ step. */
-export function ladderProgress(weekly, { start_weight, goal_weight, ladder_step }) {
+/**
+ * A step is reached when a COMPLETE weekly average ≤ step. Only weeks from the coach start
+ * (`coach_started_on`, its whole week) count: older history (e.g. a previous attempt at a lower
+ * weight) must not pre-fill the ladder.
+ */
+export function ladderProgress(weekly, { start_weight, goal_weight, ladder_step, coach_started_on, week_start_dow = 0 }) {
   if (start_weight == null || goal_weight == null || Number(goal_weight) >= Number(start_weight)) {
     return { steps: [], reached: [], next: null, remaining_to_next: null };
   }
   const steps = ladderSteps(start_weight, goal_weight, ladder_step);
-  const complete = weekly.filter((w) => w.is_complete && w.avg_weight != null);
+  const fromWeek = coach_started_on ? weekStart(coach_started_on, week_start_dow ?? 0) : null;
+  const complete = weekly.filter(
+    (w) => w.is_complete && w.avg_weight != null && (fromWeek == null || w.week_start >= fromWeek)
+  );
   const bestAvg = complete.length ? Math.min(...complete.map((w) => w.avg_weight)) : null;
   const reached = bestAvg == null ? [] : steps.filter((s) => bestAvg <= s);
   const next = steps.find((s) => !reached.includes(s)) ?? null;
@@ -249,7 +256,7 @@ export function newlyReachedSteps(weekly, settings, weekStartDate) {
  * Everything the bot / PWA / coach needs, computed once.
  * @param {object} p
  * @param {{date: string, weight: number}[]} p.entries
- * @param {{day: string, minimum_done?: boolean, lifted?: boolean, workout_label?: string}[]} p.checks
+ * @param {{day: string, minimum_done?: boolean, lifted?: boolean, workout_label?: string|null}[]} p.checks
  * @param {object} p.settings  coach_settings row
  * @param {string} p.today     local date
  */
@@ -269,7 +276,9 @@ export function buildSnapshot({ entries = [], checks = [], settings, today }) {
   const thisWeek = weekly.find((w) => w.week_start === thisWs) || empty(thisWs);
   const lastWeek = weekly.find((w) => w.week_start === lastWs) || empty(lastWs);
   const active = activeDays(entries, checks);
-  const complete = weekly.filter((w) => w.is_complete);
+  // Total lost counts only weeks since the coach started (same rule as the ladder).
+  const coachFrom = settings.coach_started_on ? weekStart(settings.coach_started_on, dow) : null;
+  const complete = weekly.filter((w) => w.is_complete && (coachFrom == null || w.week_start >= coachFrom));
   const latestComplete = complete.length ? complete[complete.length - 1] : null;
   const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   const todayEntry = sortedEntries.find((e) => e.date === today) || null;

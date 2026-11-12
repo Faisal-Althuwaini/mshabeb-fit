@@ -58,6 +58,47 @@ The plan assumes Faisal is the only user. The live database has **5 Telegram use
 - **Opting in:** `/coach 80` turns it on with goal 80 and start = the latest weigh-in; `/coach 80 112` sets the start explicitly; `/coach off` turns it off; `/coach` alone shows the status or the intro.
 - Every coaching job in M3/M4 (nudges, milestones, trend alerts) must check `coach_enabled`.
 
+### D13. PWA login = email + password (plan §7.2 conflict)
+The plan specifies email OTP (6-digit code) because magic links open Safari instead of the home-screen app. **Decision (Faisal, 2026-11-12):** plain email + password with Supabase Auth (`signInWithPassword`). The session is stored in the installed app's own storage, so you log in once inside the home-screen app and stay logged in. Account creation and password reset are the only flows that send an email.
+- The account is created from the PWA's sign-up screen, where Faisal types his own password. "Confirm email" is off, so sign-up doesn't depend on an email link.
+- Sign-ups stay **on**, because watchers (D14) create their own accounts. That's safe: a stranger's account sees nothing: RLS only returns rows for an auth user linked via `/link` to a Telegram account with the coach enabled (D4, D12).
+- Password reset sends an email link that opens in Safari. Setting the new password there works, and you then log in again in the app.
+
+### D14. Accountability: a friend watches in the PWA (new, outside the original plan)
+The plan listed social features and meal logging as out of scope. **Decision (Faisal, 2026-11-12):** add them as a new milestone, **M2.5 "Watch me"**, built on top of M2's login.
+- **Watcher accounts.** The friend signs up in the same PWA (email + password, D13) and enters an invite code that Faisal creates in Settings. Watchers don't need Telegram or the coach. Table `watchers (owner_user_id bigint → users, watcher_auth_user_id uuid → auth.users, created_at)`, plus `watch_invites (code, owner_user_id, expires_at)`. Faisal can remove a watcher at any time.
+- **What a watcher can see:** daily weights, weekly averages and the ladder, walks and lifting (`daily_checks`), and meal posts. **Never shown to watchers:** coach messages and chat, settings other than start/goal, and the `ate_out` field. RLS gets a helper `can_view(owner)`, true for the owner or one of their watchers, and it's used in **select-only** policies. Watchers can never write anything.
+- **Meal posts.** New table `meal_posts (id, user_id, local_date, posted_at, storage_path, caption, source in ('telegram','pwa'))` and a private bucket `meal-photos` with paths `{telegram_user_id}/{yyyy-mm-dd}/{uuid}.jpg`. Storage RLS: owner can read and write; watchers can read via signed URLs. Posting works either way: send a photo to Mushabbab (coach users only; the caption becomes the post text), or upload from the PWA. Both land in the same feed.
+- **Feed screen** for watchers (and Faisal): a day-by-day timeline of weight, walk/lifting badges and meal photos, plus the same chart and ladder as Progress.
+- **Missed days.** After **3 days** with no activity, the watcher gets a kind note in the feed («فيصل غايب من ٣ أيام، يمكن يحتاج كلمة منك 👋»), plus a Web Push once M5 exists. It fires at most once per gap and never during `/pause`. This sits alongside the coach's own comeback message to Faisal (M3).
+
+### D15. Flex photos are private by default, shared per photo
+**Decision (Faisal, 2026-11-12):** flex photos never reach a watcher automatically.
+- Add `flex_photos.shared_with_watchers boolean not null default false` (additive migration). The watcher select policy is `can_view(user_id) and shared_with_watchers`; the owner sees all of them.
+- In the Flex tab, each photo has a «يشوفها صاحبي» switch. When it's on, the photo shows up in the watcher feed for that day.
+- A side-by-side comparison can be shared to the feed as well as through the share sheet (WhatsApp). Sharing it to the feed stores the rendered image as a flex photo with `shared_with_watchers = true`.
+- Storage: separate private bucket `flex-photos` (as in the plan), with watcher read access only through signed URLs that the server creates for shared photos.
+- Flex reuses M2.5's photo upload, storage and feed, so it can be built alongside M2.5 instead of waiting for M6.
+
+### D16. Reactions and comments in the watch feed
+**Decision (Faisal, 2026-11-12):** watchers can react to and comment on what they see. This is part of M2.5.
+- **What can be reacted to or commented on:** meal posts, shared flex photos (D15), and each day card (that day's weight plus walk/lifting badges). A feed item is identified by `(item_kind in ('meal','flex','day'), item_ref)`. `item_ref` is the post id for meals and flex photos, and the local date for days.
+- **Tables:**
+  - `feed_reactions (owner_user_id, item_kind, item_ref, author_auth_user_id, emoji, created_at)`, with one reaction per author per item (a new tap replaces the old one).
+  - `feed_comments (id, owner_user_id, item_kind, item_ref, author_auth_user_id, body text check (length(body) between 1 and 280), created_at)`.
+- **Emoji:** a fixed set (🔥 💪 👏 😅 👀) so it stays light. Comments are short text, up to 280 characters.
+- **Who can write:** the owner and their watchers (`can_view(owner_user_id)`). Authors can delete their own comments, and the owner can delete any comment on their feed. Watchers still can't change any of the owner's data.
+- **Telling Faisal: PWA notifications (Web Push), not Telegram** (Faisal, 2026-11-12). Tapping a notification opens that feed item. Comments are pushed one by one; reactions are batched into at most one push every 30 minutes. If push isn't enabled on any of his devices, nothing goes to Telegram: the app shows an unread badge on the feed tab instead. Watchers get the same: a push when Faisal replies, otherwise the badge.
+- **This brings Web Push forward from M5 into M2.5.** It covers VAPID keys, the `push_subscriptions` table (already created in M1), the service-worker push handler, the iOS rules (only after Add to Home Screen, and permission only from a tap on «فعّل التنبيهات»), and removing dead subscriptions on 404/410. Pushes are sent from the Node bot process (D1). M5 then only has to route the coach nudges to push as well.
+- The coach's tone rules still apply to anything the bot writes. Comments from friends are shown as written.
+
+### D17. Font: Thmanyah Sans, deployed with the app but never committed (plan §7.1 conflict)
+The plan said not to bundle Thmanyah because its licence forbids hosting the font files anywhere except Thmanyah's official source. **Decision (Faisal, 2026-11-12, after being told about the restriction):** use Thmanyah Sans as the PWA font anyway. To limit redistribution:
+- The woff2 files (Regular, Medium, Bold) are copied from Faisal's local download into `pwa/public/fonts/thmanyah/`, which is **git-ignored**, so they never reach GitHub.
+- Because of that, the PWA is deployed from a local build (`netlify deploy --prod --dir dist`), not from a Netlify git build.
+- IBM Plex Sans Arabic (OFL) stays bundled as the fallback. A fresh clone without the Thmanyah files still renders correctly.
+- Licence reference: Thmanyah's FAQ (ask.thmanyah.com, "Thmanyah Font for Everyone") allows use in websites and apps, but not uploading or hosting the font files outside the official source.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.
@@ -71,6 +112,18 @@ The plan assumes Faisal is the only user. The live database has **5 Telegram use
 ## Other notes
 - README claims Telegram only delivers bot messages to users active in the last 24 hours. That's not a Telegram rule: a bot can message anyone who has started it and not blocked it. A 403 means blocked. (README left as-is for now.)
 - The reply keyboard has a `⏰ التذكير اليومي` button with no handler. Now wired to the same handler as `/reminder`.
+
+## M2 / M2.5 status (2026-11-12)
+- **Migration `20261112100000_m2_watch.sql`** applied to live Supabase. RLS checked in a rolled-back transaction: a stranger sees nothing; a watcher sees weights, checks, meals and only *shared* flex photos, can comment and react, and can't read settings, coach messages or `ate_out` or write any data; the owner sees everything.
+- **PWA** in `pwa/` (Vite + React + TS, vite-plugin-pwa injectManifest, Recharts, idb-keyval offline queue). App icon and avatar come from `pwa/assets/mushabbab.jpg` (`npm run icons`). A dev-only demo mode (`?demo=owner` / `?demo=watcher`) shows fake data; it's stripped from production builds.
+- **Bot**: Telegram photos become meal posts, or private flex photos when the caption starts with «فليكس». `src/notifier.js` sends Web Push for comments (one by one), reactions (at most one push per 30 min per person) and the 3-quiet-days note (outside quiet hours, not while paused).
+
+## Deploy order for M2
+1. Supabase dashboard → Authentication → Sign In / Providers → Email: turn **"Confirm email" off** (D13).
+2. VPS: add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` to `.env` (same values as the local `.env`), then `git pull`, `npm install`, `pm2 restart mshabib-bot`.
+3. PWA: `cd pwa && npm run build && npx netlify deploy --prod --dir dist` (needs `npx netlify login` once). `pwa/.env.local` holds only public values.
+4. Faisal opens the Netlify URL in Safari → Add to Home Screen → creates his account → gets a link code → `/link 123456` in Telegram.
+5. Faisal: Settings → «ادعُ صاحب» → send the code; the friend signs up in the same app and enters it.
 
 ## Deploy order for M1
 1. Run `supabase/migrations/20261112000000_coach_m1.sql` in the Supabase SQL editor.

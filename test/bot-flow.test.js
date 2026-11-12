@@ -3,92 +3,12 @@ const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 
-process.env.BOT_TOKEN = process.env.BOT_TOKEN || 'test';
-process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost';
-process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test';
 delete process.env.DEEPSEEK_API_KEY;
-
-// ── Fake Supabase ──────────────────────────────────────────────────────────
-const PK = {
-  users: ['telegram_user_id'],
-  weight_entries: ['user_id', 'recorded_at'],
-  coach_settings: ['user_id'],
-  daily_checks: ['user_id', 'day'],
-  coach_messages: ['id'],
-  link_codes: ['code'],
-};
-const SETTINGS_DEFAULTS = {
-  coach_enabled: false, start_weight: null, goal_weight: null, target_loss_per_4w: 3, ladder_step: 2,
-  minimum_action: 'مشي ١٥ دقيقة', lifting_days_required: 2, week_start_dow: 0,
-  timezone: 'Asia/Riyadh', paused_until: null,
-};
+const fake = require('./helpers/fake-supabase.js');
+const { SETTINGS_DEFAULTS } = fake;
+// `db` is reassigned on every reset, so read it through a getter.
 let db;
-function resetDb() {
-  db = { users: [], weight_entries: [], coach_settings: [], daily_checks: [], coach_messages: [], link_codes: [] };
-}
-
-function query(table) {
-  const filters = [];
-  let op = 'select';
-  let payload = null;
-  let opts = {};
-  let single = null;
-  let order = null;
-  const q = {
-    select() { return q; },
-    eq(c, v) { filters.push((r) => String(r[c]) === String(v)); return q; },
-    neq(c, v) { filters.push((r) => String(r[c]) !== String(v)); return q; },
-    gte(c, v) { filters.push((r) => r[c] >= v); return q; },
-    lte(c, v) { filters.push((r) => r[c] <= v); return q; },
-    lt(c, v) { filters.push((r) => r[c] < v); return q; },
-    not() { return q; },
-    order(c, { ascending = true } = {}) { order = { c, ascending }; return q; },
-    maybeSingle() { single = 'maybe'; return q; },
-    single() { single = 'one'; return q; },
-    insert(row) { op = 'insert'; payload = row; return q; },
-    upsert(row, o = {}) { op = 'upsert'; payload = row; opts = o; return q; },
-    update(row) { op = 'update'; payload = row; return q; },
-    delete() { op = 'delete'; return q; },
-    then(resolve, reject) {
-      try { resolve(run()); } catch (e) { reject(e); }
-    },
-  };
-  function match(r) { return filters.every((f) => f(r)); }
-  function run() {
-    const rows = db[table];
-    let out;
-    if (op === 'insert' || op === 'upsert') {
-      const keys = PK[table];
-      let row = { ...payload };
-      if (table === 'coach_settings') row = { ...SETTINGS_DEFAULTS, ...row };
-      if (table === 'coach_messages') row.id = rows.length + 1;
-      const idx = rows.findIndex((r) => keys.every((k) => String(r[k]) === String(row[k])));
-      if (idx >= 0 && op === 'upsert') rows[idx] = { ...rows[idx], ...row };
-      else if (idx < 0) rows.push(row);
-      out = [idx >= 0 ? rows[idx] : row];
-    } else if (op === 'update') {
-      out = rows.filter(match);
-      out.forEach((r) => Object.assign(r, payload));
-    } else if (op === 'delete') {
-      db[table] = rows.filter((r) => !match(r));
-      out = [];
-    } else {
-      out = rows.filter(match).map((r) => ({ ...r }));
-      if (order) out.sort((a, b) => (a[order.c] < b[order.c] ? -1 : 1) * (order.ascending ? 1 : -1));
-    }
-    if (single) {
-      if (out.length === 0) return single === 'one' ? { data: null, error: { message: 'no rows' } } : { data: null, error: null };
-      return { data: out[0], error: null };
-    }
-    return { data: out, error: null };
-  }
-  return q;
-}
-const fakeClient = { from: query };
-require.cache[path.resolve(__dirname, '../src/supabase.js')] = {
-  id: 'fake', filename: 'fake', loaded: true,
-  exports: { getSupabase: () => fakeClient },
-};
+function resetDb() { fake.reset(); db = fake.state.db; }
 
 const weightH = require('../src/handlers/weight.js');
 const coachH = require('../src/handlers/coach.js');

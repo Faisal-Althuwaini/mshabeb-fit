@@ -11,6 +11,9 @@ const {
 } = require('./handlers/weight.js');
 const coachHandlers = require('./handlers/coach.js');
 const { loadStats } = require('./shared.js');
+const { handlePhoto } = require('./handlers/photos.js');
+const { startNotifier } = require('./notifier.js');
+const cron = require('node-cron');
 const { handleProgress } = require('./handlers/progress.js');
 const { handleCompare, handleCompareWeek, handleCompareDay } = require('./handlers/compare.js');
 const { handleMotivate } = require('./handlers/motivate.js');
@@ -135,6 +138,9 @@ bot.action('cmd_reminder_off', async (ctx) => {
   }
 });
 
+// Meal / flex photos (coach users only)
+bot.on('photo', handlePhoto);
+
 // Last: مشيت / حديد / free text (DeepSeek). Runs only if nothing above matched.
 bot.on('text', coachHandlers.handleFreeText);
 
@@ -144,6 +150,7 @@ bot.catch((err, ctx) => {
 });
 
 startReminderScheduler(bot);
+startNotifier(cron);
 
 // HTTP server so Render runs as Web Service and Supabase cron can ping to keep it awake
 const app = express();
