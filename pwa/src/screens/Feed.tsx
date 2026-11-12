@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as data from '../lib/data';
-import type { Bundle } from '../lib/data';
+import type { Bundle, Mutate } from '../lib/data';
 import type { Subject, WhoAmI } from '../lib/types';
 import { buildDays, indexSocial, itemKey } from '../lib/feed';
 import { ar, dateLabel, timeAgo } from '../lib/format';
@@ -8,8 +8,8 @@ import Photo from '../components/Photo';
 import Social from '../components/Social';
 import PushCard from '../components/PushCard';
 
-export default function Feed({ subject, bundle, today, me, who, onChanged, toast }: {
-  subject: Subject; bundle: Bundle; today: string; me: string; who: WhoAmI; onChanged: () => void; toast: (m: string) => void;
+export default function Feed({ subject, bundle, today, me, who, onChanged, mutate, toast }: {
+  subject: Subject; bundle: Bundle; today: string; me: string; who: WhoAmI; onChanged: () => void; mutate: Mutate; toast: (m: string) => void;
 }) {
   const [limit, setLimit] = useState(14);
   const [posting, setPosting] = useState(false);
@@ -39,7 +39,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
         ownerId={subject.ownerId} kind={kind} itemRef={String(ref)} me={me} myName={myName}
         isOwner={subject.isOwner} reactions={social.reactions.get(k) || []} comments={social.comments.get(k) || []}
         views={viewsByItem.get(k) || []} watcherNames={watcherNames}
-        onChanged={onChanged} toast={toast} highlight={highlight === k}
+        onChanged={onChanged} mutate={mutate} toast={toast} highlight={highlight === k}
       />
     );
   };
@@ -84,7 +84,12 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
               <div className="meta row between">
                 <span>🍽️ {timeAgo(m.posted_at)}</span>
                 {subject.isOwner && (
-                  <button className="x link-btn faint small" onClick={async () => { if (confirm('تحذف الوجبة؟')) { await data.deleteMeal(m); onChanged(); } }}>حذف</button>
+                  <button className="x link-btn faint small" onClick={async () => {
+                    if (!confirm('تحذف الوجبة؟')) return;
+                    mutate((b) => ({ ...b, meals: b.meals.filter((x) => x.id !== m.id) }));
+                    try { await data.deleteMeal(m); } catch (e) { toast((e as Error).message); }
+                    onChanged();
+                  }}>حذف</button>
                 )}
               </div>
               {socialFor('meal', m.id)}

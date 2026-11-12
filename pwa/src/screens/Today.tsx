@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as S from '../lib/stats';
 import * as data from '../lib/data';
-import type { Bundle } from '../lib/data';
+import type { Bundle, Mutate } from '../lib/data';
+import type { Check } from '../lib/types';
 import type { Settings, Subject } from '../lib/types';
 import { ar, daysAr } from '../lib/format';
 import WeekDots from '../components/WeekDots';
@@ -14,15 +15,15 @@ const COACH_TEMPLATES = [
   'أقل شي يكفي. ١٥ دقيقة وخلاص.',
 ];
 
-export default function Today({ subject, settings, bundle, today, onChanged, toast }: {
-  subject: Subject; settings: Settings; bundle: Bundle; today: string; onChanged: () => void; toast: (m: string) => void;
+export default function Today({ subject, settings, bundle, today, onChanged, mutate, toast }: {
+  subject: Subject; settings: Settings; bundle: Bundle; today: string; onChanged: () => void; mutate: Mutate; toast: (m: string) => void;
 }) {
   const snap = useMemo(() => S.buildSnapshot({ entries: bundle.entries, checks: bundle.checks, settings, today }), [bundle, settings, today]);
   const check = bundle.checks.find((c) => c.day === today);
   const [text, setText] = useState('');
   const [editing, setEditing] = useState(snap.todayWeight == null);
   const [confirmJump, setConfirmJump] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false);
+  const busy = false;
   const [coachLine, setCoachLine] = useState<string | null>(null);
   const [pending, setPending] = useState(0);
   const [editDay, setEditDay] = useState<string | null>(null);
@@ -36,14 +37,22 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
       setConfirmJump(value);
       return;
     }
-    setBusy(true);
+    // Instant: show the new weight now, save in the background, undo on failure.
+    const before = bundle.entries;
+    mutate((b) => ({ ...b, entries: [...b.entries.filter((e) => e.date !== today), { date: today, weight: value }].sort((x, y) => x.date.localeCompare(y.date)) }));
+    setText('');
+    setConfirmJump(null);
+    setEditing(false);
+    navigator.vibrate?.(15);
+    toast(`تم ✅ ${ar(value)}`);
     try {
       const r = await data.saveWeight(subject.ownerId, today, value);
-      toast(r === 'queued' ? 'محفوظ على الجهاز، بيترفع أول ما يرجع النت' : `تم ✅ ${ar(value)}`);
-      setText('');
-      setConfirmJump(null);
+      if (r === 'queued') toast('محفوظ على الجهاز، بيترفع أول ما يرجع النت');
       onChanged();
-    } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+    } catch (e) {
+      mutate((b) => ({ ...b, entries: before }));
+      toast((e as Error).message || 'ما انحفظ الوزن');
+    }
   };
 
   const submit = (e: React.FormEvent) => {
@@ -54,11 +63,20 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
   };
 
   const toggle = async (patch: { minimum_done?: boolean; lifted?: boolean; workout_label?: string | null }) => {
+    const before = bundle.checks;
+    mutate((b) => {
+      const cur: Check = b.checks.find((c) => c.day === today) || { day: today, minimum_done: false, lifted: false, workout_label: null };
+      return { ...b, checks: [...b.checks.filter((c) => c.day !== today), { ...cur, ...patch }].sort((x, y) => x.day.localeCompare(y.day)) };
+    });
+    navigator.vibrate?.(10);
     try {
       const r = await data.saveCheck(subject.ownerId, today, patch);
       if (r === 'queued') toast('محفوظ على الجهاز');
       onChanged();
-    } catch (e) { toast((e as Error).message); }
+    } catch (e) {
+      mutate((b) => ({ ...b, checks: before }));
+      toast((e as Error).message || 'ما انحفظ');
+    }
   };
 
   const yesterdayMissed = !snap.activeYesterday && (snap.missedDays == null || snap.missedDays >= 1) && bundle.entries.length > 0;

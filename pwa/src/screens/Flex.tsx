@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import * as S from '../lib/stats';
 import * as data from '../lib/data';
-import type { Bundle } from '../lib/data';
+import type { Bundle, Mutate } from '../lib/data';
 import type { FlexPhoto, Subject } from '../lib/types';
 import { ar, shortDate } from '../lib/format';
 import { canvasToJpeg, loadImage } from '../lib/image';
 import Photo from '../components/Photo';
 
 /** Flex photos (D15): private by default, «يشوفها صاحبي» per photo, side-by-side compare. */
-export default function Flex({ subject, bundle, today, onChanged, toast }: {
-  subject: Subject; bundle: Bundle; today: string; onChanged: () => void; toast: (m: string) => void;
+export default function Flex({ subject, bundle, today, onChanged, mutate, toast }: {
+  subject: Subject; bundle: Bundle; today: string; onChanged: () => void; mutate: Mutate; toast: (m: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
@@ -56,7 +56,7 @@ export default function Flex({ subject, bundle, today, onChanged, toast }: {
 
       <div className="flex-grid">
         {photos.map((p) => (
-          <FlexItem key={p.id} p={p} selected={selected.indexOf(p.id)} onSelect={() => toggleSel(p.id)} onChanged={onChanged} toast={toast} />
+          <FlexItem key={p.id} p={p} selected={selected.indexOf(p.id)} onSelect={() => toggleSel(p.id)} onChanged={onChanged} mutate={mutate} toast={toast} />
         ))}
       </div>
 
@@ -64,7 +64,7 @@ export default function Flex({ subject, bundle, today, onChanged, toast }: {
         <>
           <h2 style={{ fontSize: 16, margin: '20px 0 10px' }}>مقارنات</h2>
           <div className="flex-grid">
-            {comparisons.map((p) => <FlexItem key={p.id} p={p} selected={-1} onChanged={onChanged} toast={toast} />)}
+            {comparisons.map((p) => <FlexItem key={p.id} p={p} selected={-1} onChanged={onChanged} mutate={mutate} toast={toast} />)}
           </div>
         </>
       )}
@@ -86,7 +86,7 @@ export default function Flex({ subject, bundle, today, onChanged, toast }: {
   );
 }
 
-function FlexItem({ p, selected, onSelect, onChanged, toast }: { p: FlexPhoto; selected: number; onSelect?: () => void; onChanged: () => void; toast: (m: string) => void }) {
+function FlexItem({ p, selected, onSelect, onChanged, mutate, toast }: { p: FlexPhoto; selected: number; onSelect?: () => void; onChanged: () => void; mutate: Mutate; toast: (m: string) => void }) {
   return (
     <div className={`flex-item ${selected >= 0 ? 'sel' : ''}`}>
       <div onClick={onSelect} style={{ cursor: onSelect ? 'pointer' : 'default' }}>
@@ -98,7 +98,13 @@ function FlexItem({ p, selected, onSelect, onChanged, toast }: { p: FlexPhoto; s
         <label className="switch small">
           <span>يشوفها صاحبي</span>
           <input type="checkbox" checked={p.shared_with_watchers} onChange={async (e) => {
-            try { await data.setFlexShared(p.id, e.target.checked); onChanged(); } catch (err) { toast((err as Error).message); }
+            const on = e.target.checked;
+            mutate((b) => ({ ...b, flex: b.flex.map((x) => (x.id === p.id ? { ...x, shared_with_watchers: on } : x)) }));
+            try { await data.setFlexShared(p.id, on); onChanged(); }
+            catch (err) {
+              mutate((b) => ({ ...b, flex: b.flex.map((x) => (x.id === p.id ? { ...x, shared_with_watchers: !on } : x)) }));
+              toast((err as Error).message);
+            }
           }} />
         </label>
         <button className="link-btn faint small" onClick={async () => { if (confirm('تحذف الصورة؟')) { await data.deleteFlex(p); onChanged(); } }}>حذف</button>

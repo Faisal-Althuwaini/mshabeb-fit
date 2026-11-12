@@ -24,6 +24,8 @@ export async function saveSettings(ownerId: number, patch: Partial<Settings>) {
   must(await supabase.from('coach_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('user_id', ownerId));
 }
 
+export type Mutate = (fn: (b: Bundle) => Bundle) => void;
+
 export type Bundle = {
   entries: Entry[];
   checks: Check[];
@@ -75,10 +77,10 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
 // ── Owner writes ──────────────────────────────────────────────────────────
 
 export const saveWeight = (ownerId: number, day: string, weight: number) =>
-  writeOrQueue({ kind: 'weight', row: { user_id: ownerId, weight, recorded_at: day, source: 'pwa' } });
+  isDemo() ? Promise.resolve('sent' as const) : writeOrQueue({ kind: 'weight', row: { user_id: ownerId, weight, recorded_at: day, source: 'pwa' } });
 
 export const saveCheck = (ownerId: number, day: string, patch: Partial<Pick<Check, 'minimum_done' | 'lifted' | 'workout_label'>>) =>
-  writeOrQueue({ kind: 'check', row: { user_id: ownerId, day, ...patch } });
+  isDemo() ? Promise.resolve('sent' as const) : writeOrQueue({ kind: 'check', row: { user_id: ownerId, day, ...patch } });
 
 async function uploadPhoto(bucket: 'meal-photos' | 'flex-photos', ownerId: number, day: string, file: Blob, alreadySized = false) {
   const blob = alreadySized ? file : await resizeImage(file);
@@ -139,6 +141,7 @@ export async function signedUrls(bucket: 'meal-photos' | 'flex-photos', paths: s
 // ── Reactions & comments (D16) ────────────────────────────────────────────
 
 export async function react(ownerId: number, kind: ItemKind, ref: string, me: string, emoji: string | null) {
+  if (isDemo()) return new Promise<void>((r) => setTimeout(r, 800)); // dev demo: pretend a slow server
   if (emoji == null) {
     must(await supabase.from('feed_reactions').delete()
       .eq('owner_user_id', ownerId).eq('item_kind', kind).eq('item_ref', ref).eq('author_auth_user_id', me));
@@ -151,6 +154,7 @@ export async function react(ownerId: number, kind: ItemKind, ref: string, me: st
 }
 
 export async function addComment(ownerId: number, kind: ItemKind, ref: string, me: string, authorName: string | null, body: string) {
+  if (isDemo()) return new Promise<void>((r) => setTimeout(r, 800));
   must(await supabase.from('feed_comments').insert({
     owner_user_id: ownerId, item_kind: kind, item_ref: ref, author_auth_user_id: me, author_name: authorName, body: body.trim().slice(0, 280),
   }));

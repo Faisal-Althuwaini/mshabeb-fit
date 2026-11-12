@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, requestPersistentStorage } from './lib/supabase';
 import * as data from './lib/data';
@@ -95,6 +95,15 @@ export default function App() {
   }, [subject]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Instant UI: screens change the bundle locally right away (mutate), the server write runs in
+  // the background, then one debounced refresh reconciles with the database (refreshSoon).
+  const mutate = useCallback((fn: (b: Bundle) => Bundle) => setBundle((b) => (b ? fn(b) : b)), []);
+  const soonTimer = useRef<number>();
+  const refreshSoon = useCallback(() => {
+    window.clearTimeout(soonTimer.current);
+    soonTimer.current = window.setTimeout(() => { refresh(); }, 1500);
+  }, [refresh]);
   useEffect(() => {
     const onFocus = () => document.visibilityState === 'visible' && refresh();
     const onOnline = () => refresh();
@@ -153,15 +162,15 @@ export default function App() {
         {!bundle ? (
           <div className="spinner" />
         ) : activeTab === 'today' && subject.isOwner && settings ? (
-          <Today subject={subject} settings={settings} bundle={bundle} today={today} onChanged={refresh} toast={toast.show} />
+          <Today subject={subject} settings={settings} bundle={bundle} today={today} onChanged={refreshSoon} mutate={mutate} toast={toast.show} />
         ) : activeTab === 'progress' ? (
           <Progress subject={subject} bundle={bundle} today={today} />
         ) : activeTab === 'coach' && subject.isOwner ? (
           <Coach subject={subject} today={today} toast={toast.show} />
         ) : activeTab === 'feed' ? (
-          <Feed subject={subject} bundle={bundle} today={today} me={me} who={who} onChanged={refresh} toast={toast.show} />
+          <Feed subject={subject} bundle={bundle} today={today} me={me} who={who} onChanged={refreshSoon} mutate={mutate} toast={toast.show} />
         ) : activeTab === 'flex' && subject.isOwner ? (
-          <Flex subject={subject} bundle={bundle} today={today} onChanged={refresh} toast={toast.show} />
+          <Flex subject={subject} bundle={bundle} today={today} onChanged={refreshSoon} mutate={mutate} toast={toast.show} />
         ) : activeTab === 'settings' ? (
           <SettingsScreen
             subject={subject}
