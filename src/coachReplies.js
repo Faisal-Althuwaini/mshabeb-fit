@@ -29,7 +29,7 @@ function weightSaved(S, snap, weight) {
 }
 
 function minimumDone(S, snap, minimumAction) {
-  return `تم ✅ سويت يومك الأدنى (${minimumAction}).\nاليوم الأدنى يكفي 👌\n${streakLine(S, snap)}`;
+  return `تم ✅ سويت أقل شي (${minimumAction}).\nأقل شي يكفي 👌\n${streakLine(S, snap)}`;
 }
 
 function lifted(S, snap, required, label) {
@@ -69,7 +69,7 @@ function weeklyReport(S, { week, prev, snap, settings, trendMessage }) {
   }
 
   lines.push(`الحديد: ${S.toArabicDigits(week.lifting_days)}/${S.toArabicDigits(req)}${week.lifting_days >= req ? ' ✅' : ''}`);
-  lines.push(`اليوم الأدنى: ${S.toArabicDigits(week.minimum_days)}/٧`);
+  lines.push(`أقل شي: ${S.toArabicDigits(week.minimum_days)}/٧`);
   lines.push(streakLine(S, snap));
   if (snap.ladder.next != null && snap.ladder.remaining_to_next != null && snap.ladder.remaining_to_next > 0) {
     lines.push(`الدرجة الجاية: ${S.toArabicDigits(snap.ladder.next)} (باقي ${S.toArabicDigits(snap.ladder.remaining_to_next)} كيلو)`);

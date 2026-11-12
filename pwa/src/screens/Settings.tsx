@@ -93,7 +93,7 @@ function CoachForm({ settings, onSaved, toast }: { settings: Settings; onSaved: 
     if (start == null || goal == null || goal >= start) return toast('البداية والهدف لازم يكونون أرقام، والهدف أقل');
     if (!(per4 > 0 && per4 <= 8)) return toast('الهدف كل ٤ أسابيع بين ٠٫٥ و ٨');
     if (!(step >= 0.5 && step <= 10)) return toast('درجة السلّم بين ٠٫٥ و ١٠');
-    if (!f.minimum_action.trim()) return toast('اكتب يومك الأدنى');
+    if (!f.minimum_action.trim()) return toast('اكتب وش أقل شي تسويه');
     setBusy(true);
     try {
       await data.saveSettings(settings.user_id, {
@@ -118,7 +118,7 @@ function CoachForm({ settings, onSaved, toast }: { settings: Settings; onSaved: 
         <label className="field"><span>كيلو كل ٤ أسابيع</span><input className="input" inputMode="decimal" dir="ltr" value={f.target_loss_per_4w} onChange={set('target_loss_per_4w')} /></label>
         <label className="field"><span>درجة السلّم (كيلو)</span><input className="input" inputMode="decimal" dir="ltr" value={f.ladder_step} onChange={set('ladder_step')} /></label>
       </div>
-      <label className="field"><span>يومك الأدنى</span><input className="input" value={f.minimum_action} onChange={set('minimum_action')} maxLength={60} /></label>
+      <label className="field"><span>أقل شي تسويه باليوم</span><input className="input" value={f.minimum_action} onChange={set('minimum_action')} maxLength={60} /></label>
       <label className="field"><span>أيام الحديد المطلوبة بالأسبوع</span><input className="input" inputMode="numeric" dir="ltr" value={f.lifting_days_required} onChange={set('lifting_days_required')} /></label>
       <div className="grid2">
         <label className="field"><span>تذكير الصباح</span><input className="input" type="time" value={f.morning_check_time} onChange={set('morning_check_time')} /></label>

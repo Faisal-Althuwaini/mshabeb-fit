@@ -8,9 +8,9 @@ import WeekDots from '../components/WeekDots';
 import { pendingCount } from '../lib/offline';
 
 const COACH_TEMPLATES = [
-  'لا تغيب مرتين. اليوم بس سوّ يومك الأدنى 💪',
+  'لا تغيب مرتين. اليوم بس سوّ أقل شي 💪',
   'المتوسط الأسبوعي أهم من رقم اليوم.',
-  'اليوم الأدنى يكفي. ١٥ دقيقة وخلاص.',
+  'أقل شي يكفي. ١٥ دقيقة وخلاص.',
 ];
 
 export default function Today({ subject, settings, bundle, today, onChanged, toast }: {
@@ -69,7 +69,7 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
         <div className="banner ok">⏸️ التذكيرات موقفة لين {settings.paused_until}. سجّل عادي إذا تبي.</div>
       )}
       {comeback ? (
-        <div className="banner">هلا والله 👋 الغياب يصير. {snap.totalLost != null && snap.totalLost > 0 ? `قبل كنت نازل ${ar(snap.totalLost)} كيلو، يعني تقدر. ` : ''}اليوم بس سوّ يومك الأدنى.</div>
+        <div className="banner">هلا والله 👋 الغياب يصير. {snap.totalLost != null && snap.totalLost > 0 ? `قبل كنت نازل ${ar(snap.totalLost)} كيلو، يعني تقدر. ` : ''}اليوم بس سوّ أقل شي.</div>
       ) : yesterdayMissed && !snap.activeToday ? (
         <div className="banner">أمس فات؟ عادي. المهم لا تفوّت اليوم.</div>
       ) : null}
@@ -112,7 +112,7 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
       <div className="stack" style={{ marginBottom: 12 }}>
         <button className={`toggle ${check?.minimum_done ? 'on' : ''}`} onClick={() => toggle({ minimum_done: !check?.minimum_done })} aria-pressed={!!check?.minimum_done}>
           <span className="tick">{check?.minimum_done ? '✓' : ''}</span>
-          <span><b>سويت يومي الأدنى</b><span className="small muted">{settings.minimum_action}</span></span>
+          <span><b>سويت أقل شي</b><span className="small muted">{settings.minimum_action}</span></span>
         </button>
         <div>
           <button className={`toggle ${check?.lifted ? 'on' : ''}`} onClick={() => toggle({ lifted: !check?.lifted, ...(check?.lifted ? { workout_label: null } : {}) })} aria-pressed={!!check?.lifted}>

@@ -28,7 +28,7 @@ export default function WeekDots({ bundle, today, weekStartDow, liftingRequired 
       </div>
       <div className="legend">
         <span><i style={{ background: 'var(--ink)' }} />وزن</span>
-        <span><i style={{ background: 'var(--accent)' }} />اليوم الأدنى</span>
+        <span><i style={{ background: 'var(--accent)' }} />أقل شي</span>
         <span><i style={{ background: 'var(--ok)' }} />حديد</span>
       </div>
     </div>

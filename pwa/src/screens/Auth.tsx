@@ -39,7 +39,7 @@ export default function Auth() {
     <div className="auth">
       <img className="hero" src="/icons/mushabbab-avatar.jpg" alt="مشبب" />
       <h1>مشبب</h1>
-      <p className="muted center" style={{ marginTop: 0 }}>لا تغيب مرتين. اليوم الأدنى يكفي.</p>
+      <p className="muted center" style={{ marginTop: 0 }}>لا تغيب مرتين. أقل شي يكفي.</p>
       <form className="stack" onSubmit={submit} style={{ marginTop: 24 }}>
         <label className="field">
           <span>الإيميل</span>

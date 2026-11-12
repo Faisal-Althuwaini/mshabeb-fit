@@ -63,7 +63,7 @@ async function handleStart(ctx) {
 /compare day — قارن آخر يومين مسجّلين
 /motivate — رسالة تحفيزية عشوائية
 /reminder — عرض أو تغيير موعد التذكير اليومي
-/done أو «مشيت» — سويت يومك الأدنى (مشي ١٥ دقيقة)
+/done أو «مشيت» — سويت أقل شي (مشي ١٥ دقيقة)
 /gym أو «حديد» — تمرنت حديد (/gym anterior أو /gym posterior)
 /pause 5 — وقّف التذكيرات ٥ أيام (سفر أو مرض)، و /resume ترجعها
 /report — ملخص الأسبوع الحين

@@ -91,7 +91,7 @@ function handlePause(ctx) {
 function handleResume(ctx) {
   return withUser(ctx, async (userId) => {
     await coach.updateSettings(userId, { paused_until: null });
-    return ctx.reply('هلا بعودتك 👋 رجعت التذكيرات. اليوم بس سوّ يومك الأدنى.');
+    return ctx.reply('هلا بعودتك 👋 رجعت التذكيرات. اليوم بس سوّ أقل شي.');
   });
 }
 
@@ -159,7 +159,7 @@ function handleCoach(ctx) {
       const lines = [
         'المدرب شغّال ✅',
         `البداية: ${S.toArabicDigits(settings.start_weight)} ← الهدف: ${S.toArabicDigits(settings.goal_weight)}`,
-        `اليوم الأدنى: ${settings.minimum_action}`,
+        `أقل شي: ${settings.minimum_action}`,
       ];
       if (snapshot.ladder.next != null) lines.push(`الدرجة الجاية: ${S.toArabicDigits(snapshot.ladder.next)}`);
       lines.push('', 'تغيّر الهدف: /coach 80 112\nتوقفه: /coach off');
@@ -192,7 +192,7 @@ function handleCoach(ctx) {
     return ctx.reply(
       `تم ✅ المدرب شغّال.\n` +
         `سلّم النزول: ${S.toArabicDigits(start)} ← ${S.toArabicDigits(goal.value)} (${S.toArabicDigits(steps.length - 1)} درجات)\n\n` +
-        'القواعد:\n• لا تغيب مرتين\n• اليوم الأدنى يكفي (' + settings.minimum_action + ')\n• المتوسط الأسبوعي أهم من وزن اليوم\n\n' +
+        'القواعد:\n• لا تغيب مرتين\n• أقل شي يكفي (' + settings.minimum_action + ')\n• المتوسط الأسبوعي أهم من وزن اليوم\n\n' +
         'ابدأ: أرسل وزنك، أو «مشيت»، أو «حديد».'
     );
   });
@@ -259,7 +259,7 @@ async function extractLog(text) {
   };
 }
 
-const HELP_SHORT = 'أرسل وزنك رقم (مثل ١١٢٫٤)، أو «مشيت» إذا سويت يومك الأدنى، أو «حديد» إذا تمرنت.';
+const HELP_SHORT = 'أرسل وزنك رقم (مثل ١١٢٫٤)، أو «مشيت» إذا سويت أقل شي، أو «حديد» إذا تمرنت.';
 
 async function handleFreeText(ctx) {
   const from = ctx.from;
@@ -305,7 +305,7 @@ async function handleFreeText(ctx) {
     if (Object.keys(patch).length) await coach.upsertCheck(userId, today, patch);
 
     const understood = [];
-    if (log.minimum_done) understood.push('يومك الأدنى ✅');
+    if (log.minimum_done) understood.push('أقل شي ✅');
     if (log.lifted) understood.push('حديد 🏋️');
     if (log.ate_out === true) understood.push('أكلت برا 🍽️');
     const extraLine = understood.length ? `وسجّلت: ${understood.join('، ')}` : '';
