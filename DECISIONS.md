@@ -121,6 +121,7 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 ## Live URLs (2026-11-12)
 - **App:** https://mushabbab.faisalalthuwaini.sa. Netlify site `mushabbab-coach`, with DNS on Netlify DNS (zone `faisalalthuwaini.sa`) and a wildcard Let's Encrypt certificate. The old address `mushabbab-coach.netlify.app` 301-redirects here so there's only one origin (home-screen storage, login and push subscriptions are all per origin).
 - **Supabase Auth Site URL:** https://mushabbab.faisalalthuwaini.sa ("Confirm email" off).
+- **Stay logged in (2026-11-12):** sessions never expire on this project (no time-box, no inactivity timeout, single-session off). The refresh-token reuse interval was raised from 10 s to the maximum **300 s**, so an iPhone that freezes the PWA mid-refresh doesn't trigger reuse detection and a forced logout. In the app, the session is mirrored in localStorage **and** IndexedDB (either restores the other), persistent storage is requested after login, and auto-refresh restarts when the app comes back to the foreground. Only «تسجيل خروج» ends a session.
 
 ## Deploy order for M2
 1. Supabase dashboard → Authentication → Sign In / Providers → Email: turn **"Confirm email" off** (D13).

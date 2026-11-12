@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './lib/supabase';
+import { supabase, requestPersistentStorage } from './lib/supabase';
 import * as data from './lib/data';
 import type { Bundle } from './lib/data';
 import { flushQueue } from './lib/offline';
@@ -67,6 +67,7 @@ export default function App() {
 
   useEffect(() => {
     if (DEMO) return;
+    if (session) requestPersistentStorage();
     if (session) refreshWho();
     else { setWho(null); setSettings(null); setBundle(null); }
   }, [session, refreshWho]);
