@@ -16,6 +16,7 @@ The fix isn't to stop weighing in — it's to stop judging progress from single 
 - **Daily reminders** — set a time with `/reminder 08:00`, and the bot nudges you if you haven't logged yet; consistent logging is what makes the weekly average meaningful in the first place
 - **Automatic weekly recap** — a summary comparing this week's average to last week's, delivered without you having to ask
 - **Motivation on demand** — `/motivate` for a random nudge when the day-to-day number is tempting you to read too much into it
+- **Coach basics** — Arabic digits accepted (`١١٢٫٤`); `/done` or «مشيت» for the minimum day, `/gym [anterior|posterior]` or «حديد» for lifting, `/pause 5` / `/resume`, `/report`, `/link 123456` to connect the PWA, and free text like `112.4 وحديد وأكلت برا` (needs `DEEPSEEK_API_KEY`)
 
 ## How it's built
 
@@ -40,7 +41,7 @@ The bot runs on long polling (no public URL or webhook required), which is why i
 ### 2. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL Editor, run the contents of [`supabase/schema.sql`](supabase/schema.sql) to create the `users` and `weight_entries` tables.
+2. In the SQL Editor, run the contents of [`supabase/schema.sql`](supabase/schema.sql) to create the `users` and `weight_entries` tables, then every file in [`supabase/migrations/`](supabase/migrations/) in order.
 3. Go to **Settings → API** and copy:
    - **Project URL** → `SUPABASE_URL`
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
@@ -75,7 +76,7 @@ pm2 save
 
 ## Good to know
 
-**Reminders and the weekly summary run on Saudi Arabia time (UTC+3).** The weekly recap lands Saturday evening, matching the Friday/Saturday weekend rather than a Sunday-close-of-week.
+**Everything runs on Saudi Arabia time (UTC+3).** Days are Riyadh calendar days and weeks run Sunday–Saturday, so the Saturday-evening recap covers the full week. See [`DECISIONS.md`](DECISIONS.md).
 
 **Telegram's 24-hour rule.** Telegram only lets bots message users who've messaged the bot within the last 24 hours. If someone hasn't opened the chat in a day, a scheduled reminder or weekly summary simply won't be delivered — there's no way around this on Telegram's side, so users need to open the bot at least once a day for reminders to land.
 
@@ -89,7 +90,11 @@ pm2 save
 - `src/services/weight.js` — weight and user data access
 - `src/services/chart.js` — builds the QuickChart progress chart URL
 - `src/messages.js` — motivational and trend message pools
-- `supabase/schema.sql` — database schema to run in the Supabase SQL Editor
+- `shared/stats.mjs` — the one stats implementation (weekly averages, streaks, ladder, digit parsing), shared with the PWA
+- `src/handlers/coach.js` — `/done`, `/gym`, `/pause`, `/resume`, `/report`, `/link`, free text
+- `src/services/coach.js`, `src/services/deepseek.js` — coaching data access and the DeepSeek client
+- `supabase/schema.sql` — base schema; `supabase/migrations/` — additive migrations (run after the base schema)
+- `test/` — `npm test`
 
 ## License
 

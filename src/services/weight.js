@@ -1,16 +1,24 @@
 const { getSupabase } = require('../supabase.js');
+const { loadStats, DEFAULT_TZ } = require('../shared.js');
 
-function startOfWeek(d) {
-  const date = new Date(d);
-  const day = date.getUTCDay();
-  const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
-  date.setUTCDate(diff);
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
+// All dates are local calendar dates in Riyadh (DECISIONS.md D3); weeks are Sunday–Saturday (D2).
+
+/** Riyadh-local 'YYYY-MM-DD' for a Date (or today). Synchronous so existing callers keep working. */
+function toDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DEFAULT_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-function toDateString(date) {
-  return date.toISOString().slice(0, 10);
+/** Sunday of the week containing `d` (local), as 'YYYY-MM-DD'. */
+async function startOfWeek(d = new Date()) {
+  const S = await loadStats();
+  return S.weekStart(toDateString(d), 0);
 }
 
 async function ensureUser(supabase, telegramUserId, from) {
@@ -41,7 +49,7 @@ async function ensureUser(supabase, telegramUserId, from) {
   });
 }
 
-async function upsertWeight(telegramUserId, weightKg, recordedDate) {
+async function upsertWeight(telegramUserId, weightKg, recordedDate, source = 'telegram') {
   const supabase = getSupabase();
   const dateStr = typeof recordedDate === 'string' ? recordedDate : toDateString(recordedDate);
 
@@ -50,6 +58,7 @@ async function upsertWeight(telegramUserId, weightKg, recordedDate) {
       user_id: telegramUserId,
       weight: parseFloat(weightKg),
       recorded_at: dateStr,
+      source,
       created_at: new Date().toISOString(),
     },
     { onConflict: 'user_id,recorded_at' }
@@ -59,18 +68,17 @@ async function upsertWeight(telegramUserId, weightKg, recordedDate) {
 }
 
 async function getRecentEntries(telegramUserId, days = 14) {
+  const S = await loadStats();
   const supabase = getSupabase();
-  const end = new Date();
-  const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - days);
-  start.setUTCHours(0, 0, 0, 0);
+  const end = toDateString(new Date());
+  const start = S.addDays(end, -days);
 
   const { data, error } = await supabase
     .from('weight_entries')
     .select('weight, recorded_at')
     .eq('user_id', telegramUserId)
-    .gte('recorded_at', toDateString(start))
-    .lte('recorded_at', toDateString(end))
+    .gte('recorded_at', start)
+    .lte('recorded_at', end)
     .order('recorded_at', { ascending: true });
 
   if (error) throw error;
@@ -78,39 +86,29 @@ async function getRecentEntries(telegramUserId, days = 14) {
 }
 
 async function getWeeklyAverages(telegramUserId) {
+  const S = await loadStats();
   const supabase = getSupabase();
-  const now = new Date();
-  const thisWeekStart = startOfWeek(now);
-  const nextWeekStart = new Date(thisWeekStart);
-  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
-  const lastWeekStart = new Date(thisWeekStart);
-  lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
+  const thisWeekStart = S.weekStart(toDateString(new Date()), 0);
+  const nextWeekStart = S.addDays(thisWeekStart, 7);
+  const lastWeekStart = S.addDays(thisWeekStart, -7);
 
-  const { data: thisWeek } = await supabase
+  const { data, error } = await supabase
     .from('weight_entries')
-    .select('weight')
+    .select('weight, recorded_at')
     .eq('user_id', telegramUserId)
-    .gte('recorded_at', toDateString(thisWeekStart))
-    .lt('recorded_at', toDateString(nextWeekStart));
+    .gte('recorded_at', lastWeekStart)
+    .lt('recorded_at', nextWeekStart);
+  if (error) throw error;
 
-  const { data: lastWeek } = await supabase
-    .from('weight_entries')
-    .select('weight')
-    .eq('user_id', telegramUserId)
-    .gte('recorded_at', toDateString(lastWeekStart))
-    .lt('recorded_at', toDateString(thisWeekStart));
-
-  const avg = (rows) => {
-    if (!rows || rows.length === 0) return null;
-    const sum = rows.reduce((s, r) => s + Number(r.weight), 0);
-    return Math.round((sum / rows.length) * 10) / 10;
-  };
+  const rows = data || [];
+  const thisWeek = rows.filter((r) => r.recorded_at >= thisWeekStart).map((r) => r.weight);
+  const lastWeek = rows.filter((r) => r.recorded_at < thisWeekStart).map((r) => r.weight);
 
   return {
-    thisWeekAvg: avg(thisWeek),
-    lastWeekAvg: avg(lastWeek),
-    thisWeekCount: (thisWeek || []).length,
-    lastWeekCount: (lastWeek || []).length,
+    thisWeekAvg: S.average(thisWeek),
+    lastWeekAvg: S.average(lastWeek),
+    thisWeekCount: thisWeek.length,
+    lastWeekCount: lastWeek.length,
   };
 }
 
@@ -168,7 +166,7 @@ module.exports = {
   getDayOverDay,
   getTodayWeight,
   getUsersWithReminderDue,
-   getAllUserIds,
+  getAllUserIds,
   toDateString,
   startOfWeek,
 };

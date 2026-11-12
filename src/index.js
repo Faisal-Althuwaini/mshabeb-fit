@@ -3,7 +3,14 @@ const { Telegraf } = require('telegraf');
 const { getConfig } = require('./config.js');
 const { startReminderScheduler } = require('./scheduler.js');
 const { handleStart, commandsInlineKeyboard, mainReplyKeyboard } = require('./handlers/start.js');
-const { handleWeightCommand, handlePlainNumber } = require('./handlers/weight.js');
+const {
+  handleWeightCommand,
+  handlePlainNumber,
+  handleWeightConfirm,
+  handleWeightCancel,
+} = require('./handlers/weight.js');
+const coachHandlers = require('./handlers/coach.js');
+const { loadStats } = require('./shared.js');
 const { handleProgress } = require('./handlers/progress.js');
 const { handleCompare, handleCompareWeek, handleCompareDay } = require('./handlers/compare.js');
 const { handleMotivate } = require('./handlers/motivate.js');
@@ -20,6 +27,13 @@ bot.command('stats', handleProgress);
 bot.command('compare', handleCompare);
 bot.command('motivate', handleMotivate);
 bot.command('reminder', handleReminder);
+bot.command('done', coachHandlers.handleDone);
+bot.command('gym', coachHandlers.handleGym);
+bot.command('pause', coachHandlers.handlePause);
+bot.command('resume', coachHandlers.handleResume);
+bot.command('report', coachHandlers.handleReport);
+bot.command('link', coachHandlers.handleLink);
+bot.command('coach', coachHandlers.handleCoach);
 bot.command('menu', async (ctx) => {
   await ctx.reply('اختر أمراً من هذه القائمة:', commandsInlineKeyboard());
   return ctx.reply('يمكنك أيضاً استخدام الأزرار في الأسفل:', mainReplyKeyboard());
@@ -27,11 +41,16 @@ bot.command('menu', async (ctx) => {
 
 bot.on('text', async (ctx, next) => {
   const text = (ctx.message?.text || '').trim();
-  if (/^\d+([.,]\d+)?$/.test(text)) {
+  const S = await loadStats();
+  // Accepts 112.4, ١١٢٫٤, 112,4 (DECISIONS.md / plan §4)
+  if (S.isNumberMessage(text)) {
     return handlePlainNumber(ctx);
   }
   return next();
 });
+
+bot.action(/^wconfirm:(.+)$/, handleWeightConfirm);
+bot.action('wcancel', handleWeightCancel);
 
 bot.hears('➕ سجّل وزن', (ctx) =>
   ctx.reply('أرسل وزنك هكذا:\n/weight 72.5\n\nأو أرسل الرقم فقط مثل: 72.5')
@@ -41,6 +60,7 @@ bot.hears('📊 التقدم', (ctx) => handleProgress(ctx));
 bot.hears('📈 مقارنة أسبوع', (ctx) => handleCompareWeek(ctx));
 bot.hears('📉 مقارنة يوم', (ctx) => handleCompareDay(ctx));
 bot.hears('🔥 تحفيز', (ctx) => handleMotivate(ctx));
+bot.hears('⏰ التذكير اليومي', (ctx) => showReminderInfo(ctx));
 bot.hears('📋 القائمة الرئيسية', async (ctx) => {
   await ctx.reply('اختر أمراً من هذه القائمة:', commandsInlineKeyboard());
   return ctx.reply('يمكنك أيضاً استخدام الأزرار في الأسفل:', mainReplyKeyboard());
@@ -75,8 +95,7 @@ bot.action('cmd_motivate', async (ctx) => {
   return handleMotivate(ctx);
 });
 
-bot.action('cmd_reminder', async (ctx) => {
-  await safeAnswerCbQuery(ctx);
+async function showReminderInfo(ctx) {
   const from = ctx.from;
   if (!from) return ctx.reply('تعذر التعرف عليك.');
 
@@ -95,6 +114,11 @@ bot.action('cmd_reminder', async (ctx) => {
       'التوقيت بتوقيت السعودية (UTC+3). مثال: 08:00 = الثامنة صباحاً بتوقيت السعودية.\n\n' +
       'ملاحظة: تيليجرام يوصّل الرسائل فقط لمَن تفاعل مع البوت خلال آخر 24 ساعة.'
   );
+}
+
+bot.action('cmd_reminder', async (ctx) => {
+  await safeAnswerCbQuery(ctx);
+  return showReminderInfo(ctx);
 });
 
 bot.action('cmd_reminder_off', async (ctx) => {
@@ -110,6 +134,9 @@ bot.action('cmd_reminder_off', async (ctx) => {
     return ctx.reply('حدث خطأ.');
   }
 });
+
+// Last: مشيت / حديد / free text (DeepSeek). Runs only if nothing above matched.
+bot.on('text', coachHandlers.handleFreeText);
 
 bot.catch((err, ctx) => {
   console.error('Bot error', err);

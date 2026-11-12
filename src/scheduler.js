@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const weightService = require('./services/weight.js');
-const { getMotivational, getTrendMessage } = require('./messages.js');
+const { getMotivational } = require('./messages.js');
+const coach = require('./services/coach.js');
 
 const KSA_OFFSET_MS = 3 * 60 * 60 * 1000; // Saudi Arabia is UTC+3, no DST
 
@@ -22,6 +23,7 @@ function startReminderScheduler(bot) {
 
     for (const telegramUserId of userIds) {
       try {
+        if (await coach.isPaused(telegramUserId).catch(() => false)) continue; // /pause
         await bot.telegram.sendMessage(
           telegramUserId,
           `⏰ وقت تسجيل وزنك!\n\n${getMotivational()}`
@@ -54,33 +56,31 @@ function startReminderScheduler(bot) {
 
     for (const telegramUserId of userIds) {
       try {
-        const weekly = await weightService.getWeeklyAverages(telegramUserId);
-
-        // Skip users with no data in both weeks
-        if (
-          (weekly.thisWeekAvg == null || weekly.thisWeekCount === 0) &&
-          (weekly.lastWeekAvg == null || weekly.lastWeekCount === 0)
-        ) {
+        if (!(await coach.isCoachEnabled(telegramUserId))) {
+          // Original summary for users who haven't opted in (DECISIONS.md D12)
+          const { buildLegacyWeeklySummary } = require('./legacySummary.js');
+          const legacy = await buildLegacyWeeklySummary(telegramUserId);
+          if (legacy) await bot.telegram.sendMessage(telegramUserId, legacy, { parse_mode: 'Markdown' });
           continue;
         }
 
-        let text = '📊 *ملخص أسبوعك*\n\n';
-        text += `متوسط هذا الأسبوع: ${
-          weekly.thisWeekAvg != null ? `*${weekly.thisWeekAvg}* كغ (${weekly.thisWeekCount} تسجيل)` : '_لا بيانات_'
-        }\n`;
-        text += `متوسط الأسبوع الماضي: ${
-          weekly.lastWeekAvg != null ? `*${weekly.lastWeekAvg}* كغ (${weekly.lastWeekCount} تسجيل)` : '_لا بيانات_'
-        }\n`;
+        // Lazy require avoids a circular import (handlers/coach → handlers/weight → …).
+        const { buildReport } = require('./handlers/coach.js');
+        const { text, week, prev } = await buildReport(telegramUserId, 'current');
 
-        if (weekly.thisWeekAvg != null && weekly.lastWeekAvg != null) {
-          const diff = weekly.thisWeekAvg - weekly.lastWeekAvg;
-          const sign = diff > 0 ? '+' : '';
-          text += `\nالفرق بين هذا الأسبوع والماضي: ${sign}${diff} كغ\n`;
-        }
+        // Skip users with no data in both weeks (same rule as before)
+        if (week.n_weighins === 0 && (!prev || prev.n_weighins === 0)) continue;
 
-        text += `\n${getTrendMessage(weekly.thisWeekAvg, weekly.lastWeekAvg)}`;
-
-        await bot.telegram.sendMessage(telegramUserId, text, { parse_mode: 'Markdown' });
+        await bot.telegram.sendMessage(telegramUserId, text);
+        await coach.logMessage({
+          userId: telegramUserId,
+          kind: 'weekly_report',
+          content: text,
+          data: { week, prev },
+          channels: ['telegram'],
+          usedFallback: true, // template report until M4
+          weekStart: week.week_start,
+        });
       } catch (e) {
         if (e.response?.error_code === 403) {
           console.warn('weekly summary not delivered (user may have blocked or not chatted in 24h):', telegramUserId);
