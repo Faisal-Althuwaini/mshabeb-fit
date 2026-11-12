@@ -7,7 +7,6 @@ import { ar, dateLabel, timeAgo } from '../lib/format';
 import Photo from '../components/Photo';
 import Social from '../components/Social';
 import PushCard from '../components/PushCard';
-import { supabase } from '../lib/supabase';
 
 export default function Feed({ subject, bundle, today, me, who, onChanged, toast }: {
   subject: Subject; bundle: Bundle; today: string; me: string; who: WhoAmI; onChanged: () => void; toast: (m: string) => void;
@@ -17,14 +16,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
   const days = useMemo(() => buildDays(bundle, limit), [bundle, limit]);
   const social = useMemo(() => indexSocial(bundle.reactions, bundle.comments), [bundle.reactions, bundle.comments]);
   const highlight = new URLSearchParams(location.search).get('item');
-  const myName = subject.isOwner ? who.first_name : null; // watcher name stored on the watchers row
-  const [watcherName, setWatcherName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (subject.isOwner) return;
-    supabase.from('watchers').select('display_name').eq('owner_user_id', subject.ownerId).eq('watcher_auth_user_id', me).maybeSingle()
-      .then(({ data: d }) => setWatcherName(d?.display_name ?? null));
-  }, [subject, me]);
+  const myName = subject.isOwner ? who.first_name : who.my_watcher_name ?? null;
 
   // Scroll to the item a notification pointed at.
   useEffect(() => {
@@ -38,7 +30,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
     const k = itemKey(kind, ref);
     return (
       <Social
-        ownerId={subject.ownerId} kind={kind} itemRef={String(ref)} me={me} myName={myName ?? watcherName}
+        ownerId={subject.ownerId} kind={kind} itemRef={String(ref)} me={me} myName={myName}
         isOwner={subject.isOwner} reactions={social.reactions.get(k) || []} comments={social.comments.get(k) || []}
         onChanged={onChanged} toast={toast} highlight={highlight === k}
       />
@@ -47,7 +39,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
 
   return (
     <div>
-      <PushCard authUserId={me} toast={toast} />
+      <PushCard authUserId={me} toast={toast} hideWhenOn />
       {subject.isOwner && (
         <button className="btn accent block" style={{ marginBottom: 12 }} onClick={() => setPosting(true)}>📸 نزّل وجبة</button>
       )}

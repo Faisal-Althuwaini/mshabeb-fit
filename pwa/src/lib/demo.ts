@@ -9,7 +9,7 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
     user_id: 1, coach_enabled: true, start_weight: 112, goal_weight: 90, target_loss_per_4w: 3, ladder_step: 2,
     minimum_action: 'مشي ١٥ دقيقة', lifting_days_required: 2, week_start_dow: 0, timezone: 'Asia/Riyadh',
     morning_check_time: '11:00:00', evening_check_time: '20:00:00', quiet_start: '23:00:00', quiet_end: '08:00:00',
-    weekly_report_dow: 6, weekly_report_time: '21:00:00', paused_until: null, coach_started_on: S.addDays(today, -69),
+    weekly_report_dow: 6, weekly_report_time: '21:00:00', paused_until: null, coach_started_on: S.addDays(today, -69), display_name: 'فيصل',
   };
   const entries = [], checks = [];
   let w = 112.6;
@@ -30,6 +30,6 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
   };
   const who: WhoAmI = role === 'owner'
     ? { telegram_user_id: 1, first_name: 'فيصل', coach_enabled: true, watching: [] }
-    : { telegram_user_id: null, first_name: null, coach_enabled: false, watching: [{ owner_user_id: 1, first_name: 'فيصل', ...settings }] };
+    : { telegram_user_id: null, first_name: null, coach_enabled: false, watching: [{ owner_user_id: 1, first_name: 'فيصل', ...settings }], my_watcher_name: 'سعد' };
   return { settings, bundle, who };
 }

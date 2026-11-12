@@ -20,6 +20,7 @@ export type Settings = {
   weekly_report_time: string;
   paused_until: string | null;
   coach_started_on: string | null;
+  display_name: string | null;
 };
 
 export type WatchedOwner = {
@@ -38,7 +39,10 @@ export type WatchedOwner = {
 
 export type WhoAmI = {
   telegram_user_id: number | null;
-  first_name: string | null;
+  first_name: string | null;       // app display name, falling back to the Telegram name
+  display_name?: string | null;
+  telegram_name?: string | null;
+  my_watcher_name?: string | null; // the name my friends see on my comments
   coach_enabled: boolean;
   watching: WatchedOwner[];
 };

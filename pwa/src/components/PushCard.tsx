@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { disablePush, enablePush, getPushState, isIOS, type PushState } from '../lib/push';
 
 /** «فعّل التنبيهات» — or the Add to Home Screen guide on iPhone Safari (plan §7.2). */
-export default function PushCard({ authUserId, toast }: { authUserId: string; toast: (m: string) => void }) {
+export default function PushCard({ authUserId, toast, hideWhenOn = false }: { authUserId: string; toast: (m: string) => void; hideWhenOn?: boolean }) {
   const [state, setState] = useState<PushState | null>(null);
   useEffect(() => { getPushState().then(setState).catch(() => setState('unsupported')); }, []);
   if (!state) return null;
@@ -24,6 +24,7 @@ export default function PushCard({ authUserId, toast }: { authUserId: string; to
   if (state === 'denied') return <div className="card soft"><h2>🔔 التنبيهات</h2><p className="muted" style={{ margin: 0 }}>التنبيهات مقفلة. فعّلها من الإعدادات ← التنبيهات ← مشبب.</p></div>;
 
   const on = state === 'on';
+  if (on && hideWhenOn) return null; // feed: once enabled, it lives in Settings only
   return (
     <div className="card soft row between">
       <div>

@@ -166,6 +166,9 @@ export async function listWatchers(ownerId: number): Promise<Watcher[]> {
 export async function removeWatcher(ownerId: number, watcherAuthId: string) {
   must(await supabase.from('watchers').delete().eq('owner_user_id', ownerId).eq('watcher_auth_user_id', watcherAuthId));
 }
+export async function setWatcherName(name: string) {
+  must(await supabase.rpc('set_watcher_name', { p_name: name }));
+}
 export async function stopWatching(ownerId: number, me: string) {
   must(await supabase.from('watchers').delete().eq('owner_user_id', ownerId).eq('watcher_auth_user_id', me));
 }

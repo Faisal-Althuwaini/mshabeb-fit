@@ -165,6 +165,7 @@ export default function App() {
             settings={settings}
             bundle={bundle}
             me={session.user}
+            who={who}
             onSaved={async () => { await refreshWho(); await refresh(); }}
             toast={toast.show}
           />

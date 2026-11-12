@@ -4,19 +4,29 @@ import { supabase } from '../lib/supabase';
 import * as data from '../lib/data';
 import type { Bundle } from '../lib/data';
 import * as S from '../lib/stats';
-import type { Settings, Subject, Watcher } from '../lib/types';
+import type { Settings, Subject, Watcher, WhoAmI } from '../lib/types';
 import PushCard from '../components/PushCard';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 
 const DOW = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const hhmm = (t: string | null | undefined) => (t || '').slice(0, 5);
 
-export default function SettingsScreen({ subject, settings, bundle, me, onSaved, toast }: {
-  subject: Subject; settings: Settings | null; bundle: Bundle; me: User; onSaved: () => Promise<void>; toast: (m: string) => void;
+export default function SettingsScreen({ subject, settings, bundle, me, who, onSaved, toast }: {
+  subject: Subject; settings: Settings | null; bundle: Bundle; me: User; who: WhoAmI; onSaved: () => Promise<void>; toast: (m: string) => void;
 }) {
   return (
     <div>
       <h2 style={{ fontSize: 22, margin: '0 0 12px' }}>الإعدادات</h2>
+      <NameCard
+        initial={subject.isOwner ? (settings?.display_name ?? who.first_name ?? '') : (who.my_watcher_name ?? '')}
+        hint={subject.isOwner ? 'يطلع لصاحبك في المتابعة والتنبيهات.' : `يطلع لـ${subject.name} على تعليقاتك وتفاعلاتك.`}
+        onSave={async (name) => {
+          if (subject.isOwner) await data.saveSettings(subject.ownerId, { display_name: name });
+          else await data.setWatcherName(name);
+          await onSaved();
+        }}
+        toast={toast}
+      />
       <PushCard authUserId={me.id} toast={toast} />
       <Appearance />
       {subject.isOwner && settings ? (
@@ -134,14 +144,15 @@ function Watchers({ ownerId, toast }: { ownerId: number; toast: (m: string) => v
   return (
     <div className="card stack">
       <h2 style={{ margin: 0 }}>👀 اللي يتابعونك</h2>
+      {list.length > 0 && <p className="small muted" style={{ margin: 0 }}>إذا طردت أحد، يوقف يشوف كل شي فوراً. يرجع بس إذا عطيته كود جديد.</p>}
       {list.length === 0 && <p className="muted" style={{ margin: 0 }}>ما أحد يتابعك للحين. ادعُ صاحبك عشان يشوف وزنك ووجباتك ويعلّق.</p>}
       {list.map((w) => (
-        <div key={w.watcher_auth_user_id} className="row between">
-          <span>{w.display_name || 'صاحبك'}</span>
-          <button className="link-btn" onClick={async () => {
-            if (!confirm(`تشيل ${w.display_name || 'صاحبك'} من المتابعين؟`)) return;
-            try { await data.removeWatcher(ownerId, w.watcher_auth_user_id); load(); } catch (e) { toast((e as Error).message); }
-          }}>إزالة</button>
+        <div key={w.watcher_auth_user_id} className="row between" style={{ minHeight: 48 }}>
+          <span><b>{w.display_name || 'صاحبك'}</b> <span className="small faint">· من {S.toArabicDigits(Number(w.created_at.slice(8, 10)), 0)}/{S.toArabicDigits(Number(w.created_at.slice(5, 7)), 0)}</span></span>
+          <button className="btn ghost" style={{ color: 'var(--danger)', minHeight: 40 }} onClick={async () => {
+            if (!confirm(`تطرد ${w.display_name || 'صاحبك'}؟ بيوقف يشوف وزنك ووجباتك فوراً.`)) return;
+            try { await data.removeWatcher(ownerId, w.watcher_auth_user_id); toast('تم الطرد'); load(); } catch (e) { toast((e as Error).message); }
+          }}>طرد</button>
         </div>
       ))}
       {code ? (
@@ -171,5 +182,28 @@ function Appearance() {
         ))}
       </div>
     </div>
+  );
+}
+
+function NameCard({ initial, hint, onSave, toast }: { initial: string; hint: string; onSave: (name: string) => Promise<void>; toast: (m: string) => void }) {
+  const [name, setName] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setName(initial), [initial]);
+  const changed = name.trim() !== initial.trim();
+  return (
+    <form className="card stack" onSubmit={async (e) => {
+      e.preventDefault();
+      const n = name.trim();
+      if (n.length < 1 || n.length > 40) return toast('الاسم من ١ إلى ٤٠ حرف');
+      setBusy(true);
+      try { await onSave(n); toast('تم ✅'); } catch (err) { toast((err as Error).message); } finally { setBusy(false); }
+    }}>
+      <label className="field">
+        <span>اسمك</span>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="مثلاً: فيصل" />
+      </label>
+      <p className="small muted" style={{ margin: 0 }}>{hint}</p>
+      {changed && <button className="btn accent block" disabled={busy}>حفظ الاسم</button>}
+    </form>
   );
 }

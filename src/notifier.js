@@ -21,13 +21,16 @@ async function loadOwners(ownerIds) {
   const supabase = getSupabase();
   const ids = [...new Set(ownerIds)];
   if (ids.length === 0) return new Map();
-  const [{ data: users }, { data: watchers }] = await Promise.all([
+  const [{ data: users }, { data: watchers }, { data: names }] = await Promise.all([
     supabase.from('users').select('telegram_user_id, auth_user_id, first_name').in('telegram_user_id', ids),
     supabase.from('watchers').select('owner_user_id, watcher_auth_user_id, display_name').in('owner_user_id', ids),
+    supabase.from('coach_settings').select('user_id, display_name').in('user_id', ids),
   ]);
+  const display = new Map((names || []).map((n) => [String(n.user_id), n.display_name]));
   const map = new Map();
   for (const u of users || []) {
-    map.set(String(u.telegram_user_id), { authId: u.auth_user_id, name: u.first_name || 'صاحبك', watchers: [] });
+    const name = display.get(String(u.telegram_user_id)) || u.first_name || 'صاحبك';
+    map.set(String(u.telegram_user_id), { authId: u.auth_user_id, name, watchers: [] });
   }
   for (const w of watchers || []) {
     const o = map.get(String(w.owner_user_id));
