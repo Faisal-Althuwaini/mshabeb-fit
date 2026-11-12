@@ -40,7 +40,11 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
     try {
       const r = await data.sendChat(m);
       setRemaining(r.remaining);
-      await load();
+      const reply: CoachMessage = { id: -Date.now() - 1, kind: 'chat_coach', content: r.reply, data: null, created_at: new Date().toISOString(), used_fallback: false };
+      // Show the reply right away; then refresh from the database without losing it if it isn't there yet.
+      setMsgs((cur) => [reply, ...(cur || [])]);
+      const fresh = await data.loadCoachMessages(subject.ownerId).catch(() => null);
+      if (fresh && fresh.some((x) => x.kind === 'chat_coach' && x.content === r.reply)) setMsgs(fresh);
     } catch (e) {
       toast((e as Error).message);
       setMsgs((cur) => (cur || []).filter((x) => x.id !== optimistic.id));

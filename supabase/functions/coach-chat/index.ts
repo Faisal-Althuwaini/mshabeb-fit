@@ -108,9 +108,11 @@ Deno.serve(async (req) => {
   const usedFallback = reply == null;
   const text = reply ?? 'مشبب ما يقدر يرد الحين 🙏 جرّب بعد شوي. وتذكّر: أقل شي يكفي.';
 
-  await db.from('coach_messages').insert([
-    { user_id: userId, kind: 'chat_user', content: message, local_date: today, channels: ['pwa'] },
+  // Same keys on both rows: a bulk insert sends missing keys as NULL (used_fallback is NOT NULL).
+  const { error: insErr } = await db.from('coach_messages').insert([
+    { user_id: userId, kind: 'chat_user', content: message, local_date: today, channels: ['pwa'], used_fallback: false },
     { user_id: userId, kind: 'chat_coach', content: text, local_date: today, channels: ['pwa'], used_fallback: usedFallback },
   ]);
+  if (insErr) console.error('chat insert failed:', insErr.message);
   return json({ reply: text, remaining: DAILY_LIMIT - (count ?? 0) - 1, usedFallback }, 200, origin);
 });
