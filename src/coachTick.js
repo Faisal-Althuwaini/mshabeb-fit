@@ -79,6 +79,22 @@ async function messageState(userId, today) {
   };
 }
 
+// ── Weekly report timing ──────────────────────────────────────────────────
+
+async function weeklyReportDue(S, userId, settings, snapshot, now) {
+  const tz = settings.timezone || DEFAULT_TZ;
+  const today = S.localDate(now, tz);
+  if (S.dayOfWeek(today) !== (settings.weekly_report_dow ?? 6)) return false;
+  const nowMin = S.localMinutes(now, tz);
+  const [h, m] = String(settings.weekly_report_time || '21:00').split(':').map(Number);
+  const at = h * 60 + (m || 0);
+  if (nowMin < at || nowMin >= at + 180) return false;
+  if (inQuietHours(nowMin, settings.quiet_start || '23:00', settings.quiet_end || '08:00')) return false;
+  const { data } = await getSupabase().from('coach_messages').select('id')
+    .eq('user_id', userId).eq('kind', 'weekly_report').eq('week_start', snapshot.thisWeek.week_start).limit(1);
+  return !(data && data.length);
+}
+
 // ── Ladder milestones ──────────────────────────────────────────────────────
 
 /** Pure: steps newly reached (below the start weight) that haven't been celebrated yet. */
@@ -150,6 +166,12 @@ async function runTick(bot, now = new Date()) {
 
       const ms = await checkMilestones(bot, { S, userId, settings, snapshot, today, name, authId: u?.auth_user_id, now, dry });
       if (ms) sent.push({ userId, kind: 'milestone', text: ms.text });
+
+      // Weekly report (M4): on weekly_report_dow at weekly_report_time (±3h window), once per week.
+      if (await weeklyReportDue(S, userId, settings, snapshot, now)) {
+        const { sendWeeklyReport } = require('./coachAI.js');
+        for (const r of await sendWeeklyReport(bot, userId, now, { dry })) sent.push({ userId, ...r });
+      }
 
       const kinds = decideNudges({
         settings,

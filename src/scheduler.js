@@ -66,23 +66,8 @@ function startReminderScheduler(bot) {
           continue;
         }
 
-        // Lazy require avoids a circular import (handlers/coach → handlers/weight → …).
-        const { buildReport } = require('./handlers/coach.js');
-        const { text, week, prev } = await buildReport(telegramUserId, 'current');
-
-        // Skip users with no data in both weeks (same rule as before)
-        if (week.n_weighins === 0 && (!prev || prev.n_weighins === 0)) continue;
-
-        await bot.telegram.sendMessage(telegramUserId, text);
-        await coach.logMessage({
-          userId: telegramUserId,
-          kind: 'weekly_report',
-          content: text,
-          data: { week, prev },
-          channels: ['telegram'],
-          usedFallback: true, // template report until M4
-          weekStart: week.week_start,
-        });
+        // Coach users get the AI weekly report from the coach tick, on their own day/time (D21).
+        continue;
       } catch (e) {
         if (e.response?.error_code === 403) {
           console.warn('weekly summary not delivered (user may have blocked or not chatted in 24h):', telegramUserId);

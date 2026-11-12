@@ -14,6 +14,7 @@ import Progress from './screens/Progress';
 import Feed from './screens/Feed';
 import Flex from './screens/Flex';
 import SettingsScreen from './screens/Settings';
+import Coach from './screens/Coach';
 import TabBar, { type Tab } from './components/TabBar';
 import Header from './components/Header';
 import { Toast, useToast } from './components/Toast';
@@ -21,7 +22,7 @@ import { demoData } from './lib/demo';
 
 const DEMO = import.meta.env.DEV ? (new URLSearchParams(location.search).get('demo') as 'owner' | 'watcher' | null) : null;
 
-const PATHS: Record<Tab, string> = { today: '/', progress: '/progress', feed: '/feed', flex: '/flex', settings: '/settings' };
+const PATHS: Record<Tab, string> = { today: '/', progress: '/progress', coach: '/coach', feed: '/feed', flex: '/flex', settings: '/settings' };
 const tabFromPath = (p: string): Tab =>
   (Object.entries(PATHS).find(([, v]) => v !== '/' && p.startsWith(v))?.[0] as Tab) || 'today';
 
@@ -115,7 +116,7 @@ export default function App() {
     window.scrollTo({ top: 0 });
   };
   // Watchers only have Feed + Progress (+ Settings).
-  const watcherTab: Tab = tab === 'today' || tab === 'flex' ? 'feed' : tab;
+  const watcherTab: Tab = tab === 'today' || tab === 'flex' || tab === 'coach' ? 'feed' : tab;
   const activeTab = subject && !subject.isOwner ? watcherTab : tab;
 
   useEffect(() => {
@@ -155,6 +156,8 @@ export default function App() {
           <Today subject={subject} settings={settings} bundle={bundle} today={today} onChanged={refresh} toast={toast.show} />
         ) : activeTab === 'progress' ? (
           <Progress subject={subject} bundle={bundle} today={today} />
+        ) : activeTab === 'coach' && subject.isOwner ? (
+          <Coach subject={subject} today={today} toast={toast.show} />
         ) : activeTab === 'feed' ? (
           <Feed subject={subject} bundle={bundle} today={today} me={me} who={who} onChanged={refresh} toast={toast.show} />
         ) : activeTab === 'flex' && subject.isOwner ? (

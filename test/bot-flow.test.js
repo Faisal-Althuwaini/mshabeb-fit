@@ -127,9 +127,10 @@ test('/report renders the template report', async () => {
   const c = ctx('/report');
   await coachH.handleReport(c);
   const t = c.replies[0].text;
-  assert.match(t, /ملخص الأسبوع/);
+  assert.match(t, /^📊 /);
   assert.match(t, /المتوسط: ١١٢٫٤/);
-  assert.match(t, /الحديد: ٠\/٢/);
+  assert.match(t, /حديد ٠ من ٢/);
+  assert.match(t, /🎯 الأسبوع الجاي:/);
   assert.ok(S);
 });
 

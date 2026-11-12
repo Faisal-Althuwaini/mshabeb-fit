@@ -35,3 +35,18 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
     : { telegram_user_id: null, first_name: null, coach_enabled: false, watching: [{ owner_user_id: 1, first_name: 'فيصل', ...settings }], my_watcher_name: 'سعد' };
   return { settings, bundle, who };
 }
+
+export const isDemo = () => import.meta.env.DEV && new URLSearchParams(location.search).has('demo');
+
+export function demoCoachMessages() {
+  const now = Date.now();
+  const iso = (minsAgo: number) => new Date(now - minsAgo * 60000).toISOString();
+  return [
+    { id: 5, kind: 'chat_coach', content: 'عادي جداً 👌 الوزن اليومي يتأثر بالملح والماي. متوسطك هالأسبوع ١٠٧٫٢ وهو أقل من اللي فات. كمّل أقل شي اليوم وبس.', data: null, created_at: iso(3), used_fallback: false },
+    { id: 4, kind: 'chat_user', content: 'ليه وزني اليوم زاد؟', data: null, created_at: iso(4), used_fallback: false },
+    { id: 3, kind: 'nudge_morning', content: 'صباح الخير 👋 لا تنسى ترسل وزنك اليوم، وخلّ أقل شي (مشي ١٥ دقيقة) في بالك.', data: null, created_at: iso(300), used_fallback: true },
+    { id: 2, kind: 'weekly_report', content: '📊 أسبوع نازل 👏', created_at: iso(60 * 30), used_fallback: false, data: { report: {
+      headline: 'أسبوع نازل 👏 كمّل كذا', went_well: ['المتوسط نزل ٠٫٦ كيلو', 'سويت أقل شي ٥ أيام'],
+      watch_out: ['الحديد ١ من ٢، باقي حصة'], focus_next_week: 'حصتين حديد: أمامي الأحد وخلفي الأربعاء', tone: 'celebrate' } } },
+  ] as const;
+}

@@ -61,6 +61,11 @@ export type ItemKind = 'meal' | 'flex' | 'day';
 export type Reaction = { owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; emoji: string; created_at: string };
 export type Comment = { id: number; owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; author_name: string | null; body: string; created_at: string };
 export type FeedView = { owner_user_id: number; item_kind: ItemKind; item_ref: string; viewer_auth_user_id: string; seen_at: string };
+export type CoachMessage = {
+  id: number; kind: 'nudge_morning' | 'nudge_firm' | 'comeback' | 'weekly_report' | 'trend_alert' | 'milestone' | 'lifting_check' | 'chat_user' | 'chat_coach';
+  content: string; data: Record<string, unknown> | null; created_at: string; used_fallback: boolean;
+};
+export type WeeklyReport = { headline: string; went_well: string[]; watch_out: string[]; focus_next_week: string; tone: 'celebrate' | 'steady' | 'push' | 'comeback' };
 export type Watcher = { owner_user_id: number; watcher_auth_user_id: string; display_name: string | null; created_at: string };
 
 /** Who we're looking at: the owner themself, or the person a watcher follows. */

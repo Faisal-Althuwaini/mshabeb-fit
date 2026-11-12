@@ -129,7 +129,8 @@ function handleReport(ctx) {
       const legacy = await buildLegacyWeeklySummary(userId);
       return ctx.reply(legacy || 'لا توجد بيانات كافية بعد. سجّل وزنك هذا الأسبوع.', legacy ? { parse_mode: 'Markdown' } : undefined);
     }
-    const { text } = await buildReport(userId, 'latest');
+    const { buildAIReport } = require('../coachAI.js');
+    const { text } = await buildAIReport(userId, 'latest');
     return ctx.reply(text);
   });
 }

@@ -2,8 +2,9 @@
 import { supabase } from './supabase';
 import { writeOrQueue, cacheGet, cacheSet } from './offline';
 import { resizeImage } from './image';
+import { isDemo, demoCoachMessages } from './demo';
 import type {
-  Check, Comment, Entry, FeedEvent, FeedView, FlexPhoto, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
+  Check, CoachMessage, Comment, Entry, FeedEvent, FeedView, FlexPhoto, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
 } from './types';
 
 const must = <T>(r: { data: T | null; error: { message: string } | null }): T => {
@@ -190,6 +191,27 @@ export async function setWatcherName(name: string) {
 }
 export async function stopWatching(ownerId: number, me: string) {
   must(await supabase.from('watchers').delete().eq('owner_user_id', ownerId).eq('watcher_auth_user_id', me));
+}
+
+export async function loadCoachMessages(ownerId: number): Promise<CoachMessage[]> {
+  if (isDemo()) return demoCoachMessages() as unknown as CoachMessage[];
+  return must(await supabase.from('coach_messages').select('id, kind, content, data, created_at, used_fallback')
+    .eq('user_id', ownerId).order('created_at', { ascending: false }).limit(150)) as CoachMessage[];
+}
+
+/** Chat with مشبب (edge function coach-chat). */
+export async function sendChat(message: string): Promise<{ reply: string; remaining: number; limited?: boolean }> {
+  if (isDemo()) return { reply: `(تجربة) وصلتني: ${message}`, remaining: 27 };
+  const { data: d, error } = await supabase.functions.invoke('coach-chat', { body: { message } });
+  if (error) {
+    // 429 (daily limit) still carries a friendly reply in the body
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try { const body = await ctx.json(); if (body?.reply) return body; } catch { /* fallthrough */ }
+    }
+    throw new Error('مشبب ما رد، جرّب بعد شوي');
+  }
+  return d as { reply: string; remaining: number };
 }
 
 export async function latestCoachLine(ownerId: number, today: string): Promise<string | null> {

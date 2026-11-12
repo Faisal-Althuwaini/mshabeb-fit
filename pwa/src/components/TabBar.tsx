@@ -1,8 +1,9 @@
-export type Tab = 'today' | 'progress' | 'feed' | 'flex' | 'settings';
+export type Tab = 'today' | 'progress' | 'coach' | 'feed' | 'flex' | 'settings';
 
 const OWNER_TABS: { id: Tab; label: string; ico: string }[] = [
   { id: 'today', label: 'اليوم', ico: '☀️' },
   { id: 'progress', label: 'التقدم', ico: '📉' },
+  { id: 'coach', label: 'المدرب', ico: '🧭' },
   { id: 'feed', label: 'المتابعة', ico: '👀' },
   { id: 'flex', label: 'فليكس', ico: '💪' },
 ];
