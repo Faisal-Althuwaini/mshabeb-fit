@@ -62,7 +62,11 @@ The plan assumes Faisal is the only user. The live database has **5 Telegram use
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.
 - **Data:** Faisal has 88 weigh-ins since 2026-03-06 (97.0 → 111.2, with gaps Sep 7 → Oct 21 → Nov 10). None were logged between 00:00 and 03:00 Riyadh, so the UTC date bug (D3) didn't mis-date any past entries.
-- **VPS (64.176.164.36):** not yet checked. SSH needs a key to be installed, so we don't know yet which commit is deployed or how pm2 is configured.
+- **VPS (Vultr, 64.176.164.36, Ubuntu 22.04, Node 20.20.2 with full ICU, 1 GB RAM):** user `linuxuser`. pm2 runs the bot as **`mshabib-bot`** from **`/home/linuxuser/Qaiyma/mshabeb-fit`** (not `weight-tracker-bot` as the README says). The same pm2 also runs `qaiyma-bot` (a different token) and a stopped `trend-hunter`.
+- **Deployed code = commit `b906714`** (Saudi timezone), byte-for-byte. The checkout is at `1e00b55` with uncommitted edits, so it was deployed by copying files, not with `git pull`. It still has `render.yaml`. `fd91d26` (README only) isn't deployed, which doesn't matter.
+- **Restart history:** pm2 shows 118,913 restarts. Every one was `409 Conflict: terminated by other getUpdates request`, meaning a second copy of the bot was polling with the same token. It crash-looped from 2026-07-24 until 2026-09-03, then launched once and has stayed up since, connected to Telegram, with no 409s after that. So the other copy is gone. **Never run `npm start` locally while the VPS bot is live**, or it will start fighting again.
+- **2026-10-28:** 135 Cloudflare 522 errors from Supabase (temporarily unreachable). The process survived them.
+- The pm2 logs aren't rotated (30 MB error log, 19 MB out log). Consider `pm2 install pm2-logrotate`.
 
 ## Other notes
 - README claims Telegram only delivers bot messages to users active in the last 24 hours. That's not a Telegram rule: a bot can message anyone who has started it and not blocked it. A 403 means blocked. (README left as-is for now.)
@@ -70,7 +74,7 @@ The plan assumes Faisal is the only user. The live database has **5 Telegram use
 
 ## Deploy order for M1
 1. Run `supabase/migrations/20261112000000_coach_m1.sql` in the Supabase SQL editor.
-2. `git pull && npm install` on the VPS, add `DEEPSEEK_API_KEY` to `.env` (optional), then `pm2 restart weight-tracker-bot`.
+2. On the VPS, in `/home/linuxuser/Qaiyma/mshabeb-fit`: discard the copied-in edits (they equal `b906714`, which is already in history), check out the new branch, `npm install`, add `DEEPSEEK_API_KEY` to `.env` (optional), then `pm2 restart mshabib-bot`.
 3. Faisal sends `/coach 80 112` to the bot to turn the coach on for himself.
 
 The migration must go first: the new code writes `weight_entries.source` and reads `coach_settings`.
