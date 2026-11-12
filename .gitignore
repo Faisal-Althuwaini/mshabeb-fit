@@ -11,3 +11,4 @@ node_modules/
 
 # Supabase CLI local state
 supabase/.temp/
+.env.bak*
