@@ -5,3 +5,9 @@ node_modules/
 
 # Local Netlify folder
 .netlify
+
+# local secrets (never committed)
+.secrets/
+
+# Supabase CLI local state
+supabase/.temp/

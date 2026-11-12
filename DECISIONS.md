@@ -132,6 +132,15 @@ Measured from Riyadh: each Supabase request answers in **0.6–2.6 s** (project 
 - **Service worker** calls `skipWaiting()` + `clients.claim()`, so new versions apply on the next open.
 - **The real fix** would be moving the project to a closer region (e.g. Frankfurt or Mumbai). That means a new project plus data, auth users and storage migration, and new keys for the bot, app and function. Not done yet; Faisal to decide.
 
+### D23. Database moved from Sydney to Mumbai (2026-11-12)
+**Faisal:** requests (especially photos) were too slow. A region can't be changed in place, so:
+- **New project** `Mushabbab` (`fdkieikygfcvqwbrtzdi`, **ap-south-1 / Mumbai**, same region as Himmah). Latency from Riyadh dropped from 0.6–2.6 s to **~0.27 s** per request.
+- **Schema:** `supabase/schema.sql` plus all migrations applied in order. Verified identical to the old project (15 tables, all RLS, 30 policies, 9 functions, 2 buckets).
+- **Auth settings re-applied:** confirm email off, Site URL = app domain, refresh-token reuse interval 300 s.
+- **Cut-over:** the bot was stopped (~5 min); a fresh export of every table (incl. `auth.users`/`auth.identities`, so passwords still work) was copied over by matching columns; sequences were reset; the stored photos were re-uploaded; the bot `.env` was switched (backup `.env.bak-sydney-20261112` on the VPS); the app was rebuilt with the new URL/anon key; `coach-chat` was deployed to the new project. Push subscriptions carried over (VAPID keys unchanged).
+- **Effects:** everyone signs in once more (new JWT keys). `OPENROUTER_API_KEY` had to be set again as a function secret on the new project.
+- **Old project** `Fitness-telegram` (Sydney) kept untouched as a fallback, then paused; Himmah resumed. The new DB password and keys are in the git-ignored `.secrets/`.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

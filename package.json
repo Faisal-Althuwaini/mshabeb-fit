@@ -7,7 +7,7 @@
     "start": "node src/index.js",
     "dev": "node src/index.js",
     "test": "node --test",
-    "deploy:chat": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy coach-chat --project-ref msfxhmswhsfrfurkfjwy --use-api --no-verify-jwt"
+    "deploy:chat": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy coach-chat --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt"
   },
   "keywords": [
     "telegram",
