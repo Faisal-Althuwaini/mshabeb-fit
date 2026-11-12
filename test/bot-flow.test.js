@@ -3,7 +3,7 @@ const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 
-delete process.env.DEEPSEEK_API_KEY;
+delete process.env.OPENROUTER_API_KEY;
 const fake = require('./helpers/fake-supabase.js');
 const { SETTINGS_DEFAULTS } = fake;
 // `db` is reassigned on every reset, so read it through a getter.
@@ -141,10 +141,12 @@ test('free text without DeepSeek key is ignored (previous behaviour)', async () 
 
 test('free text via DeepSeek: "112.4 وحديد وأكلت برا" saves all three', async () => {
   enableCoach();
-  process.env.DEEPSEEK_API_KEY = 'test';
+  process.env.OPENROUTER_API_KEY = 'test';
   const realFetch = global.fetch;
   let sentBody;
+  let sentUrl;
   global.fetch = async (url, init) => {
+    sentUrl = url;
     sentBody = JSON.parse(init.body);
     return {
       ok: true,
@@ -159,7 +161,10 @@ test('free text via DeepSeek: "112.4 وحديد وأكلت برا" saves all thr
   try {
     const c = ctx('112.4 وحديد وأكلت برا');
     await coachH.handleFreeText(c);
-    assert.equal(sentBody.model, 'deepseek-flash');
+    assert.equal(sentBody.model, 'deepseek/deepseek-v4.1-flash');
+    assert.equal(sentUrl, 'https://openrouter.ai/api/v1/chat/completions');
+    assert.deepEqual(sentBody.models, ['deepseek/deepseek-v4.1-flash', 'openai/gpt-oss-120b']);
+    assert.deepEqual(sentBody.response_format, { type: 'json_object' });
     assert.equal(db.weight_entries[0].weight, 112.4);
     assert.equal(db.daily_checks[0].lifted, true);
     assert.equal(db.daily_checks[0].ate_out, true);
@@ -167,13 +172,13 @@ test('free text via DeepSeek: "112.4 وحديد وأكلت برا" saves all thr
     assert.match(c.replies.at(-1).text, /حديد 🏋️/);
   } finally {
     global.fetch = realFetch;
-    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
   }
 });
 
 test('free text via DeepSeek: unsure → asks, saves nothing; API down → friendly fallback', async () => {
   enableCoach();
-  process.env.DEEPSEEK_API_KEY = 'test';
+  process.env.OPENROUTER_API_KEY = 'test';
   const realFetch = global.fetch;
   global.fetch = async () => ({
     ok: true,
@@ -191,7 +196,7 @@ test('free text via DeepSeek: unsure → asks, saves nothing; API down → frien
     assert.match(c2.replies[0].text, /ما قدرت أفهمها/);
   } finally {
     global.fetch = realFetch;
-    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
   }
 });
 
@@ -233,7 +238,7 @@ test('non-coach: /report gives the original summary; /link and DeepSeek are off'
   await coachH.handleLink(l);
   assert.match(l.replies[0].text, /فعّله أول/);
 
-  process.env.DEEPSEEK_API_KEY = 'test';
+  process.env.OPENROUTER_API_KEY = 'test';
   const realFetch = global.fetch;
   let called = false;
   global.fetch = async () => { called = true; throw new Error('should not be called'); };
@@ -244,7 +249,7 @@ test('non-coach: /report gives the original summary; /link and DeepSeek are off'
     assert.equal(f.replies.length, 0);
   } finally {
     global.fetch = realFetch;
-    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
   }
 });
 

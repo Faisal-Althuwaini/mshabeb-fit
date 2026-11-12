@@ -48,7 +48,7 @@ A pure ES module with no dependencies. The CommonJS bot loads it via dynamic `im
 ### D10. Weekly summary is logged
 For coach users (D12), the Saturday summary now also adds counts for minimum days and lifting days, and is logged to `coach_messages` as `weekly_report` (`used_fallback = true` until the M4 DeepSeek report replaces it).
 
-### D11. DeepSeek model
+### D11. DeepSeek model (superseded by D20)
 Checked https://api-docs.deepseek.com on 2026-11-12: the current IDs are `deepseek-flash` and `deepseek-v4-pro`. We use `deepseek-flash`, overridable with the `DEEPSEEK_MODEL` env var. If `DEEPSEEK_API_KEY` isn't set, free-text parsing is off and the bot behaves as before (it ignores unknown text).
 
 ### D12. The coach is opt-in, per user (plan §2 "single user" conflict)
@@ -114,6 +114,9 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 - **Past days:** the app's «📅 نسيت تسجل يوم؟» sheet (or tapping a past dot in the week view) edits the weight, «أقل شي» and lifting for any of the last 7 days. In Telegram (coach users), «أمس ١١١٫٨» / «١١١٫٨ أمس», «مشيت أمس» and «حديد أمس» log yesterday.
 - **«👀 شافه»:** table `feed_views` (migration `20261112300000`). A watcher's app records the first time each feed item has been ≥60% on screen for 1 s. Only the owner reads who saw what, and the owner's own views are never recorded.
 - **Milestones:** the coach tick celebrates each ladder step **below the start weight**, once, when a complete coach-era week reaches it (lowest new step if several). The celebration goes to Telegram + push for Faisal, a push to watchers («فيصل نزل تحت ١١٠ 🎉»), a `feed_events` milestone card, and a 3-day banner on «اليوم». Celebrated steps are tracked in `coach_messages.data.steps`. It waits out quiet hours and doesn't count toward the 2-nudge cap.
+
+### D20. LLM via OpenRouter: DeepSeek V4.1 Flash, gpt-oss-120b as fallback (replaces D11)
+**Decision (Faisal, 2026-11-12):** use the cheapest model that's good enough. `src/services/llm.js` calls OpenRouter's OpenAI-compatible `/chat/completions` with `model: deepseek/deepseek-v4.1-flash` ($0.02 in / $0.40 out per 1M tokens, about $0.25 a month at expected use) and `models: [primary, openai/gpt-oss-120b]`, so OpenRouter falls back to the second model in the same request. It uses `response_format: json_object` plus a tolerant JSON parse, with an 8 s timeout; if both models fail, callers use templates. The unpinned `deepseek-v4.1-flash` is used, not the `-1017` snapshot (about 6× the price). Settings: `OPENROUTER_API_KEY` (unset = templates only), `LLM_MODEL`, `LLM_FALLBACK_MODELS`, `LLM_BASE_URL`. The key lives only in the VPS `.env`, added by Faisal himself.
 
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.

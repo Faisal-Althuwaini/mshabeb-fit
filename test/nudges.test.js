@@ -9,7 +9,7 @@ require.cache[pushPath] = {
   id: pushPath, filename: pushPath, loaded: true,
   exports: { isEnabled: () => true, sendToAuthUsers: async (ids, p) => { pushed.push({ ids, ...p }); return ids.length; } },
 };
-delete process.env.DEEPSEEK_API_KEY;
+delete process.env.OPENROUTER_API_KEY;
 delete process.env.DRY_RUN;
 
 const { decideNudges, renderTemplate, inQuietHours, TEMPLATES } = require('../src/nudges.js');
@@ -144,7 +144,7 @@ test('tick: firm in the evening after a missed day; DRY_RUN sends nothing', asyn
 
 test('tick: DeepSeek down → template fallback, still delivered', async () => {
   seed();
-  process.env.DEEPSEEK_API_KEY = 'test';
+  process.env.OPENROUTER_API_KEY = 'test';
   const realFetch = global.fetch;
   global.fetch = async () => { throw new Error('network down'); };
   const tg = [];
@@ -155,6 +155,6 @@ test('tick: DeepSeek down → template fallback, still delivered', async () => {
     assert.equal(tg.length, 1);
   } finally {
     global.fetch = realFetch;
-    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
   }
 });

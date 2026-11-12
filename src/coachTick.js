@@ -1,11 +1,11 @@
 // M3: the coaching tick. Runs every 5 minutes inside the bot process (D1; plan §5 used pg_cron).
-// For each coach user: decide which nudges are due (src/nudges.js), write the text (DeepSeek if
+// For each coach user: decide which nudges are due (src/nudges.js), write the text (the LLM via OpenRouter if
 // available, otherwise a template), send via Telegram + Web Push, and log to coach_messages.
 // Idempotent: a kind is never sent twice on the same local date. DRY_RUN=1 logs instead of sending.
 const { getSupabase } = require('./supabase.js');
 const coach = require('./services/coach.js');
 const push = require('./services/push.js');
-const deepseek = require('./services/deepseek.js');
+const llm = require('./services/llm.js');
 const { loadStats, DEFAULT_TZ } = require('./shared.js');
 const { decideNudges, renderTemplate, inQuietHours } = require('./nudges.js');
 
@@ -25,7 +25,7 @@ const ARABIC = /[؀-ۿ]/;
 
 async function writeMessage(kind, ctx) {
   const fallback = renderTemplate(kind, ctx);
-  if (!deepseek.isEnabled()) return { text: fallback, usedFallback: true };
+  if (!llm.isEnabled()) return { text: fallback, usedFallback: true };
   const { snapshot, settings, name, recent } = ctx;
   const facts = {
     name,
@@ -42,7 +42,7 @@ async function writeMessage(kind, ctx) {
     recent_messages_do_not_repeat: recent,
   };
   try {
-    const out = await deepseek.chatJson(
+    const out = await llm.chatJson(
       [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: `Task: ${KIND_BRIEF[kind]}\nFacts (JSON): ${JSON.stringify(facts)}` },

@@ -1,7 +1,7 @@
 // New Mushabbab Coach commands: /done, /gym, /pause, /resume, /report, /link, free text.
 const weightService = require('../services/weight.js');
 const coach = require('../services/coach.js');
-const deepseek = require('../services/deepseek.js');
+const llm = require('../services/llm.js');
 const { getSupabase } = require('../supabase.js');
 const { loadStats } = require('../shared.js');
 const replies = require('../coachReplies.js');
@@ -247,7 +247,7 @@ Rules:
 - If the message isn't a log at all (greeting, question, chit-chat), return all nulls, confident=false, question=null.`;
 
 async function extractLog(text) {
-  const out = await deepseek.chatJson(
+  const out = await llm.chatJson(
     [
       { role: 'system', content: EXTRACT_PROMPT },
       { role: 'user', content: text },
@@ -311,7 +311,7 @@ async function handleFreeText(ctx) {
   if (GYM_WORDS.includes(text)) return withUser(ctx, (userId) => markLifted(ctx, userId, null));
   if (await handleYesterday(ctx, text)) return;
 
-  if (!deepseek.isEnabled()) return; // previous behaviour: ignore unknown text
+  if (!llm.isEnabled()) return; // previous behaviour: ignore unknown text
   if (!(await coach.isCoachEnabled(from.id).catch(() => false))) return; // coach users only (D12)
 
   return withUser(ctx, async (userId) => {
@@ -320,7 +320,7 @@ async function handleFreeText(ctx) {
     try {
       log = await extractLog(text);
     } catch (e) {
-      console.error('DeepSeek extract failed:', e.message);
+      console.error('LLM extract failed:', e.message);
       return ctx.reply(`ما قدرت أفهمها الحين 🙏 ${HELP_SHORT}`);
     }
 

@@ -9,7 +9,7 @@ require.cache[pushPath] = {
   id: pushPath, filename: pushPath, loaded: true,
   exports: { isEnabled: () => true, sendToAuthUsers: async (ids, p) => { pushed.push({ ids, ...p }); return ids.length; } },
 };
-delete process.env.DEEPSEEK_API_KEY;
+delete process.env.OPENROUTER_API_KEY;
 delete process.env.DRY_RUN;
 
 const coachH = require('../src/handlers/coach.js');
