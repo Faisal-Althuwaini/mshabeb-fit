@@ -5,6 +5,7 @@ import type { Bundle } from '../lib/data';
 import type { Settings, Subject } from '../lib/types';
 import { ar, daysAr } from '../lib/format';
 import WeekDots from '../components/WeekDots';
+import DayEditor from '../components/DayEditor';
 import { pendingCount } from '../lib/offline';
 
 const COACH_TEMPLATES = [
@@ -24,6 +25,7 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
   const [busy, setBusy] = useState(false);
   const [coachLine, setCoachLine] = useState<string | null>(null);
   const [pending, setPending] = useState(0);
+  const [editDay, setEditDay] = useState<string | null>(null);
 
   useEffect(() => { setEditing(snap.todayWeight == null); }, [snap.todayWeight]);
   useEffect(() => { data.latestCoachLine(subject.ownerId, today).then(setCoachLine).catch(() => undefined); }, [subject.ownerId, today]);
@@ -65,6 +67,15 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
 
   return (
     <div>
+      {(() => {
+        const win = bundle.events.find((e) => e.kind === 'milestone' && S.daysBetween(e.local_date, today) <= 2);
+        return win ? (
+          <div className="banner ok center" style={{ fontSize: 18 }}>
+            🎉 نزلت تحت <b>{ar(win.data?.step ?? 0)}</b>!
+            {snap.ladder.next != null && <div className="small">الدرجة الجاية {ar(snap.ladder.next)}</div>}
+          </div>
+        ) : null;
+      })()}
       {settings.paused_until && settings.paused_until >= today && (
         <div className="banner ok">⏸️ التذكيرات موقفة لين {settings.paused_until}. سجّل عادي إذا تبي.</div>
       )}
@@ -131,7 +142,12 @@ export default function Today({ subject, settings, bundle, today, onChanged, toa
         </div>
       </div>
 
-      <WeekDots bundle={bundle} today={today} weekStartDow={settings.week_start_dow} liftingRequired={settings.lifting_days_required} />
+      <WeekDots bundle={bundle} today={today} weekStartDow={settings.week_start_dow} liftingRequired={settings.lifting_days_required} onPickDay={setEditDay} />
+      <button className="btn ghost block" style={{ marginBottom: 12 }} onClick={() => setEditDay(S.addDays(today, -1))}>📅 نسيت تسجل يوم؟</button>
+      {editDay && (
+        <DayEditor ownerId={subject.ownerId} bundle={bundle} today={today} initialDay={editDay} minimumAction={settings.minimum_action}
+          onClose={() => setEditDay(null)} onSaved={() => { setEditDay(null); onChanged(); }} toast={toast} />
+      )}
 
       <div className="card soft row" style={{ alignItems: 'flex-start' }}>
         <img className="avatar" src="/icons/mushabbab-avatar.jpg" alt="" style={{ width: 32, height: 32 }} />

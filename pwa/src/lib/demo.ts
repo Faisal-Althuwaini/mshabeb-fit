@@ -26,6 +26,8 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
     flex: [],
     events: [],
     reactions: [{ owner_user_id: 1, item_kind: 'day', item_ref: S.addDays(today, -1), author_auth_user_id: 'friend', emoji: '🔥', created_at: new Date().toISOString() }],
+    views: [{ owner_user_id: 1, item_kind: 'meal', item_ref: '1', viewer_auth_user_id: 'friend', seen_at: new Date().toISOString() }],
+    watchers: [{ owner_user_id: 1, watcher_auth_user_id: 'friend', display_name: 'سعد', created_at: new Date().toISOString() }],
     comments: [{ id: 1, owner_user_id: 1, item_kind: 'meal', item_ref: '1', author_auth_user_id: 'friend', author_name: 'سعد', body: 'كفو 👏 بس وين السلطة؟', created_at: new Date().toISOString() }],
   };
   const who: WhoAmI = role === 'owner'

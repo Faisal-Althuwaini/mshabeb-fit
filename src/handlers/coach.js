@@ -265,6 +265,41 @@ async function extractLog(text) {
   };
 }
 
+// «أمس ١١١٫٨» / «١١١٫٨ أمس» / «مشيت أمس» / «حديد أمس» — log yesterday (coach users).
+const YESTERDAY = '(?:أمس|امس|البارح|البارحة)';
+const YDAY_WEIGHT_RE = new RegExp(`^(?:${YESTERDAY}\\s+(\\S+)|(\\S+)\\s+${YESTERDAY})$`);
+const YDAY_DONE_RE = new RegExp(`^(?:✅\\s*)?مشيت\\s+${YESTERDAY}$`);
+const YDAY_GYM_RE = new RegExp(`^(?:🏋️\\s*)?(?:حديد|تمرنت)\\s+${YESTERDAY}$`);
+
+/** @returns {Promise<boolean>} true if the message was a "yesterday" log and was handled. */
+async function handleYesterday(ctx, text) {
+  const S = await loadStats();
+  const norm = S.normalizeDigits(text).trim();
+  const isDone = YDAY_DONE_RE.test(text.trim());
+  const isGym = YDAY_GYM_RE.test(text.trim());
+  const m = !isDone && !isGym ? norm.match(YDAY_WEIGHT_RE) : null;
+  const w = m && S.isNumberMessage(m[1] || m[2]) ? m : null;
+  if (!w && !isDone && !isGym) return false;
+  if (!(await coach.isCoachEnabled(ctx.from.id).catch(() => false))) return false;
+
+  await withUser(ctx, async (userId) => {
+    const settings = await coach.getSettings(userId);
+    const today = await coach.todayFor(settings);
+    const yesterday = S.addDays(today, -1);
+    if (w) {
+      const r = S.parseWeightInput(w[1] || w[2]);
+      if (!r.ok) return ctx.reply(`الوزن لازم يكون بين ${S.toArabicDigits(S.WEIGHT_MIN)} و ${S.toArabicDigits(S.WEIGHT_MAX)}.`);
+      await weightService.upsertWeight(userId, r.value, yesterday, 'telegram');
+      const { snapshot } = await coach.getSnapshot(userId);
+      return ctx.reply(`تم ✅ ${S.toArabicDigits(r.value)} لأمس\n` + replies.weightSaved(S, snapshot, r.value).split('\n').slice(1).join('\n'));
+    }
+    await coach.upsertCheck(userId, yesterday, isDone ? { minimum_done: true } : { lifted: true });
+    const { snapshot } = await coach.getSnapshot(userId);
+    return ctx.reply(`تم ✅ سجلت ${isDone ? 'أقل شي' : 'حديد 🏋️'} لأمس\n${replies.streakLine(S, snapshot)}`);
+  });
+  return true;
+}
+
 const HELP_SHORT = 'أرسل وزنك رقم (مثل ١١٢٫٤)، أو «مشيت» إذا سويت أقل شي، أو «حديد» إذا تمرنت.';
 
 async function handleFreeText(ctx) {
@@ -274,6 +309,7 @@ async function handleFreeText(ctx) {
 
   if (DONE_WORDS.includes(text)) return handleDone(ctx);
   if (GYM_WORDS.includes(text)) return withUser(ctx, (userId) => markLifted(ctx, userId, null));
+  if (await handleYesterday(ctx, text)) return;
 
   if (!deepseek.isEnabled()) return; // previous behaviour: ignore unknown text
   if (!(await coach.isCoachEnabled(from.id).catch(() => false))) return; // coach users only (D12)
@@ -335,6 +371,7 @@ module.exports = {
   handleLink,
   handleCoach,
   handleFreeText,
+  handleYesterday,
   buildReport,
   parseWorkoutLabel,
   extractLog,

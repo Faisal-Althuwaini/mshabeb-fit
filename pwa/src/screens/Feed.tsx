@@ -15,6 +15,12 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
   const [posting, setPosting] = useState(false);
   const days = useMemo(() => buildDays(bundle, limit), [bundle, limit]);
   const social = useMemo(() => indexSocial(bundle.reactions, bundle.comments), [bundle.reactions, bundle.comments]);
+  const viewsByItem = useMemo(() => {
+    const m = new Map<string, typeof bundle.views>();
+    for (const v of bundle.views) { const k = itemKey(v.item_kind, v.item_ref); (m.get(k) || m.set(k, []).get(k)!).push(v); }
+    return m;
+  }, [bundle.views]);
+  const watcherNames = useMemo(() => new Map(bundle.watchers.map((w) => [w.watcher_auth_user_id, w.display_name || 'صاحبك'])), [bundle.watchers]);
   const highlight = new URLSearchParams(location.search).get('item');
   const myName = subject.isOwner ? who.first_name : who.my_watcher_name ?? null;
 
@@ -32,6 +38,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
       <Social
         ownerId={subject.ownerId} kind={kind} itemRef={String(ref)} me={me} myName={myName}
         isOwner={subject.isOwner} reactions={social.reactions.get(k) || []} comments={social.comments.get(k) || []}
+        views={viewsByItem.get(k) || []} watcherNames={watcherNames}
         onChanged={onChanged} toast={toast} highlight={highlight === k}
       />
     );
@@ -59,13 +66,17 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, toast
             )}
           </div>
           {d.events.map((ev) => (
-            <div key={ev.id} className="event">
-              {subject.isOwner
-                ? `قلنا لصاحبك إنك غايب من ${ar(ev.data?.days ?? 3, 0)} أيام. ارجع اليوم بيوم أدنى 💪`
-                : `${subject.name} غايب من ${ar(ev.data?.days ?? 3, 0)} أيام، يمكن يحتاج كلمة منك 👋`}
+            <div key={ev.id} className={`event ${ev.kind === 'milestone' ? 'win' : ''}`}>
+              {ev.kind === 'milestone'
+                ? subject.isOwner
+                  ? `🎉 نزلت تحت ${ar(ev.data?.step ?? 0)}!${ev.data?.avg != null ? ` متوسط الأسبوع ${ar(ev.data.avg)}` : ''}`
+                  : `🎉 ${subject.name} نزل تحت ${ar(ev.data?.step ?? 0)}! حط له 🔥`
+                : subject.isOwner
+                  ? `قلنا لصاحبك إنك غايب من ${ar(ev.data?.days ?? 3, 0)} أيام. ارجع اليوم بأقل شي 💪`
+                  : `${subject.name} غايب من ${ar(ev.data?.days ?? 3, 0)} أيام، يمكن يحتاج كلمة منك 👋`}
             </div>
           ))}
-          {(d.weight != null || d.check) && socialFor('day', d.day)}
+          {(d.weight != null || d.check || d.events.some((e) => e.kind === 'milestone')) && socialFor('day', d.day)}
           {d.meals.map((m) => (
             <div key={m.id} className="post">
               <Photo bucket="meal-photos" path={m.storage_path} className="ph" alt={m.caption || 'وجبة'} />

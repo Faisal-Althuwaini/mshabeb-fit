@@ -2,7 +2,7 @@ import type { Bundle } from '../lib/data';
 import * as S from '../lib/stats';
 import { arInt, dayShort } from '../lib/format';
 
-export default function WeekDots({ bundle, today, weekStartDow, liftingRequired }: { bundle: Bundle; today: string; weekStartDow: number; liftingRequired: number }) {
+export default function WeekDots({ bundle, today, weekStartDow, liftingRequired, onPickDay }: { bundle: Bundle; today: string; weekStartDow: number; liftingRequired: number; onPickDay?: (d: string) => void }) {
   const ws = S.weekStart(today, weekStartDow);
   const days = Array.from({ length: 7 }, (_, i) => S.addDays(ws, i));
   const weights = new Set(bundle.entries.map((e) => e.date));
@@ -16,14 +16,14 @@ export default function WeekDots({ bundle, today, weekStartDow, liftingRequired 
       </div>
       <div className="week">
         {days.map((d) => (
-          <div key={d} className={`d ${d === today ? 'today' : ''}`}>
+          <button key={d} className={`d ${d === today ? "today" : ""}`} disabled={!onPickDay || d >= today} onClick={() => onPickDay?.(d)} aria-label={`تعديل ${d}`}>
             {dayShort(d)}
             <div className="dots">
               <span className={`dot ${weights.has(d) ? 'w' : ''}`} />
               <span className={`dot ${checks.get(d)?.minimum_done ? 'm' : ''}`} />
               <span className={`dot ${checks.get(d)?.lifted ? 'l' : ''}`} />
             </div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="legend">

@@ -110,6 +110,11 @@ The plan said not to bundle Thmanyah because its licence forbids hosting the fon
 - **Never sent twice:** a kind is never sent twice on the same local date, and failed deliveries are still logged so they can't cause a resend loop. `DRY_RUN=1` logs to the console instead of sending.
 - **The old daily reminder** (`users.reminder_time`, 08:00) no longer fires for coach users. On `/coach`, their reminder time is copied to `morning_check_time`, so the morning nudge comes at the same time but only when they haven't logged yet. Faisal's existing row was updated the same way (08:00).
 
+### D19. Quick wins: past days, «👀 شافه», ladder celebrations
+- **Past days:** the app's «📅 نسيت تسجل يوم؟» sheet (or tapping a past dot in the week view) edits the weight, «أقل شي» and lifting for any of the last 7 days. In Telegram (coach users), «أمس ١١١٫٨» / «١١١٫٨ أمس», «مشيت أمس» and «حديد أمس» log yesterday.
+- **«👀 شافه»:** table `feed_views` (migration `20261112300000`). A watcher's app records the first time each feed item has been ≥60% on screen for 1 s. Only the owner reads who saw what, and the owner's own views are never recorded.
+- **Milestones:** the coach tick celebrates each ladder step **below the start weight**, once, when a complete coach-era week reaches it (lowest new step if several). The celebration goes to Telegram + push for Faisal, a push to watchers («فيصل نزل تحت ١١٠ 🎉»), a `feed_events` milestone card, and a 3-day banner on «اليوم». Celebrated steps are tracked in `coach_messages.data.steps`. It waits out quiet hours and doesn't count toward the 2-nudge cap.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

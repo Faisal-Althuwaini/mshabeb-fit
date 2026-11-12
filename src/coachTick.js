@@ -7,7 +7,7 @@ const coach = require('./services/coach.js');
 const push = require('./services/push.js');
 const deepseek = require('./services/deepseek.js');
 const { loadStats, DEFAULT_TZ } = require('./shared.js');
-const { decideNudges, renderTemplate } = require('./nudges.js');
+const { decideNudges, renderTemplate, inQuietHours } = require('./nudges.js');
 
 const KIND_BRIEF = {
   nudge_morning: 'Gentle morning reminder: he has not sent today\'s weight yet. Ask for the weight and mention the minimum action.',
@@ -79,6 +79,59 @@ async function messageState(userId, today) {
   };
 }
 
+// ── Ladder milestones ──────────────────────────────────────────────────────
+
+/** Pure: steps newly reached (below the start weight) that haven't been celebrated yet. */
+function newMilestones(snapshot, settings, celebrated) {
+  const start = Number(settings.start_weight);
+  return (snapshot.ladder.reached || []).filter((s) => s < start && !celebrated.has(s)).sort((a, b) => a - b);
+}
+
+async function celebratedSteps(userId) {
+  const { data } = await getSupabase().from('coach_messages').select('data').eq('user_id', userId).eq('kind', 'milestone');
+  const set = new Set();
+  for (const r of data || []) for (const s of r.data?.steps || []) set.add(Number(s));
+  return set;
+}
+
+async function checkMilestones(bot, { S, userId, settings, snapshot, today, name, authId, now, dry }) {
+  const steps = newMilestones(snapshot, settings, await celebratedSteps(userId));
+  if (steps.length === 0) return null;
+  const tz = settings.timezone || DEFAULT_TZ;
+  if (inQuietHours(S.localMinutes(now, tz), settings.quiet_start || '23:00', settings.quiet_end || '08:00')) return null; // celebrate in the morning
+  const step = steps[0]; // the lowest one reached
+  const ar = (n) => S.toArabicDigits(n);
+  const avg = [...snapshot.weekly].reverse().find((w) => w.is_complete)?.avg_weight ?? null;
+  const next = snapshot.ladder.next;
+  const { data: watchers } = await getSupabase().from('watchers').select('watcher_auth_user_id').eq('owner_user_id', userId);
+  const watcherIds = (watchers || []).map((w) => w.watcher_auth_user_id);
+  const text =
+    `🎉 نزلت تحت ${ar(step)}!` +
+    (avg != null ? ` متوسط الأسبوع ${ar(avg)}.` : '') +
+    (next != null && snapshot.ladder.remaining_to_next > 0 ? `\nالدرجة الجاية ${ar(next)} (باقي ${ar(snapshot.ladder.remaining_to_next)} كيلو).` : '') +
+    (watcherIds.length ? '\nوقلت لصاحبك 😎' : '') +
+    '\nكمّل، المتوسط ما يكذب 💪';
+  if (dry) {
+    console.log(`[DRY_RUN] ${userId} milestone: ${text}`);
+    return { step, text };
+  }
+  const channels = [];
+  try { await bot.telegram.sendMessage(userId, text); channels.push('telegram'); } catch (e) { console.error('milestone telegram failed:', e.message); }
+  if (authId) {
+    const n = await push.sendToAuthUsers([authId], { title: 'مشبب 🎉', body: text.split('\n')[0], url: '/progress', tag: `milestone-${step}` }).catch(() => 0);
+    if (n > 0) channels.push('push');
+  }
+  await coach.logMessage({ userId, kind: 'milestone', content: text, data: { step, steps, avg }, channels, usedFallback: true, localDate: today });
+  await getSupabase().from('feed_events').upsert(
+    { owner_user_id: userId, kind: 'milestone', local_date: today, gap_key: `step-${step}`, data: { step, avg } },
+    { onConflict: 'owner_user_id,kind,gap_key', ignoreDuplicates: true }
+  );
+  if (watcherIds.length) {
+    await push.sendToAuthUsers(watcherIds, { title: `${name || 'صاحبك'} نزل تحت ${ar(step)} 🎉`, body: 'حط له 🔥', url: '/feed', tag: `milestone-${userId}-${step}` }).catch(() => 0);
+  }
+  return { step, text };
+}
+
 /** Run one tick. Returns the list of {userId, kind, text} that were sent (or would be, in DRY_RUN). */
 async function runTick(bot, now = new Date()) {
   const S = await loadStats();
@@ -91,6 +144,13 @@ async function runTick(bot, now = new Date()) {
       const tz = settings.timezone || DEFAULT_TZ;
       const today = S.localDate(now, tz);
       const state = await messageState(userId, today);
+      const { data: u } = await getSupabase()
+        .from('users').select('first_name, auth_user_id').eq('telegram_user_id', userId).maybeSingle();
+      const name = settings.display_name || (u?.first_name || '').split(' ')[0];
+
+      const ms = await checkMilestones(bot, { S, userId, settings, snapshot, today, name, authId: u?.auth_user_id, now, dry });
+      if (ms) sent.push({ userId, kind: 'milestone', text: ms.text });
+
       const kinds = decideNudges({
         settings,
         snapshot,
@@ -102,9 +162,6 @@ async function runTick(bot, now = new Date()) {
       });
       if (kinds.length === 0) continue;
 
-      const { data: u } = await getSupabase()
-        .from('users').select('first_name, auth_user_id').eq('telegram_user_id', userId).maybeSingle();
-      const name = settings.display_name || (u?.first_name || '').split(' ')[0];
       const dayIndex = S.daysBetween('2026-01-01', today);
 
       for (const kind of kinds) {
@@ -141,4 +198,4 @@ function startCoachTick(cron, bot) {
   console.log(`Coach tick started (every 5 min${process.env.DRY_RUN === '1' ? ', DRY_RUN' : ''}).`);
 }
 
-module.exports = { startCoachTick, runTick, writeMessage };
+module.exports = { startCoachTick, runTick, writeMessage, newMilestones };

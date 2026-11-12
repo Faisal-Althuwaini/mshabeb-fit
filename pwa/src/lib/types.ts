@@ -56,10 +56,11 @@ export type FlexPhoto = {
   weight_at_time: number | null; shared_with_watchers: boolean; caption: string | null;
   is_comparison: boolean; created_at: string;
 };
-export type FeedEvent = { id: number; owner_user_id: number; kind: 'missed_days'; local_date: string; data: { days: number } | null; created_at: string };
+export type FeedEvent = { id: number; owner_user_id: number; kind: 'missed_days' | 'milestone'; local_date: string; data: { days?: number; step?: number; avg?: number } | null; created_at: string };
 export type ItemKind = 'meal' | 'flex' | 'day';
 export type Reaction = { owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; emoji: string; created_at: string };
 export type Comment = { id: number; owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; author_name: string | null; body: string; created_at: string };
+export type FeedView = { owner_user_id: number; item_kind: ItemKind; item_ref: string; viewer_auth_user_id: string; seen_at: string };
 export type Watcher = { owner_user_id: number; watcher_auth_user_id: string; display_name: string | null; created_at: string };
 
 /** Who we're looking at: the owner themself, or the person a watcher follows. */

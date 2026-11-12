@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { writeOrQueue, cacheGet, cacheSet } from './offline';
 import { resizeImage } from './image';
 import type {
-  Check, Comment, Entry, FeedEvent, FlexPhoto, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
+  Check, Comment, Entry, FeedEvent, FeedView, FlexPhoto, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
 } from './types';
 
 const must = <T>(r: { data: T | null; error: { message: string } | null }): T => {
@@ -31,13 +31,15 @@ export type Bundle = {
   events: FeedEvent[];
   reactions: Reaction[];
   comments: Comment[];
+  views: FeedView[];
+  watchers: Watcher[];
 };
 
 /** Everything for one person's feed / progress. Cached for offline use. */
 export async function loadBundle(ownerId: number): Promise<Bundle> {
   const key = `bundle:${ownerId}`;
   try {
-    const [w, c, m, f, e, r, cm] = await Promise.all([
+    const [w, c, m, f, e, r, cm, v, wa] = await Promise.all([
       supabase.from('weight_entries').select('weight, recorded_at').eq('user_id', ownerId).order('recorded_at'),
       // explicit columns: ate_out is not readable from the PWA (D14)
       supabase.from('daily_checks').select('day, minimum_done, lifted, workout_label').eq('user_id', ownerId).order('day'),
@@ -46,6 +48,8 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
       supabase.from('feed_events').select('*').eq('owner_user_id', ownerId).order('created_at', { ascending: false }).limit(50),
       supabase.from('feed_reactions').select('owner_user_id, item_kind, item_ref, author_auth_user_id, emoji, created_at').eq('owner_user_id', ownerId),
       supabase.from('feed_comments').select('id, owner_user_id, item_kind, item_ref, author_auth_user_id, author_name, body, created_at').eq('owner_user_id', ownerId).order('created_at'),
+      supabase.from('feed_views').select('*').eq('owner_user_id', ownerId),
+      supabase.from('watchers').select('*').eq('owner_user_id', ownerId),
     ]);
     const bundle: Bundle = {
       entries: must(w).map((x: { weight: number | string; recorded_at: string }) => ({ date: x.recorded_at, weight: Number(x.weight) })),
@@ -55,6 +59,8 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
       events: must(e) as FeedEvent[],
       reactions: must(r) as Reaction[],
       comments: must(cm) as Comment[],
+      views: (v.error ? [] : v.data) as FeedView[],
+      watchers: (wa.error ? [] : wa.data) as Watcher[],
     };
     await cacheSet(key, bundle);
     return bundle;
@@ -147,6 +153,19 @@ export async function addComment(ownerId: number, kind: ItemKind, ref: string, m
   must(await supabase.from('feed_comments').insert({
     owner_user_id: ownerId, item_kind: kind, item_ref: ref, author_auth_user_id: me, author_name: authorName, body: body.trim().slice(0, 280),
   }));
+}
+
+const seenSent = new Set<string>();
+/** Watcher saw an item (first time only; the owner sees «👀 شافه»). */
+export async function markSeen(ownerId: number, kind: ItemKind, ref: string, me: string) {
+  const k = `${ownerId}:${kind}:${ref}`;
+  if (seenSent.has(k)) return;
+  seenSent.add(k);
+  const { error } = await supabase.from('feed_views').upsert(
+    { owner_user_id: ownerId, item_kind: kind, item_ref: ref, viewer_auth_user_id: me },
+    { onConflict: 'owner_user_id,item_kind,item_ref,viewer_auth_user_id', ignoreDuplicates: true }
+  );
+  if (error) seenSent.delete(k);
 }
 
 export async function deleteComment(id: number) {
