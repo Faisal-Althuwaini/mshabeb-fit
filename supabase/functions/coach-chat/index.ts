@@ -1,4 +1,5 @@
-// coach-chat: chat with مشبب from the PWA (plan §6.5). Requires the user's JWT (verify_jwt on).
+// coach-chat: chat with مشبب from the PWA (plan §6.5). Requires the user's JWT, verified in code
+// (deploy with: npm run deploy:chat — uses --no-verify-jwt).
 // Context = shared buildContext + the last 10 chat turns. 30 messages a day. Plain-text replies.
 // Secrets: OPENROUTER_API_KEY (unset → friendly fallback), optional LLM_MODEL / LLM_FALLBACK_MODELS.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
@@ -56,6 +57,12 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: auth } },
     auth: { persistSession: false },
   });
+
+  // The gateway JWT check is off (deployed with --no-verify-jwt) because this project signs user
+  // tokens with the new asymmetric keys; verify the caller here instead.
+  if (!auth.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401, origin);
+  const { data: userData, error: userErr } = await db.auth.getUser(auth.slice(7));
+  if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401, origin);
 
   const { data: who, error: whoErr } = await db.rpc('whoami');
   if (whoErr || !who?.telegram_user_id || !who.coach_enabled) return json({ error: 'coach_not_enabled' }, 403, origin);
