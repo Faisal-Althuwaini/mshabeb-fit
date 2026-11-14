@@ -7,11 +7,13 @@ import { ar, arInt, daysAr } from '../lib/format';
 import WeightChart from '../components/WeightChart';
 import Ladder from '../components/Ladder';
 import { MEASURE_FIELDS } from '../lib/types';
+import MonthlySheet from '../components/MonthlySheet';
 
 type Range = '4w' | '12w' | 'all';
 
-export default function Progress({ subject, bundle, today }: { subject: Subject; bundle: Bundle; today: string }) {
+export default function Progress({ subject, bundle, today, toast }: { subject: Subject; bundle: Bundle; today: string; toast: (m: string) => void }) {
   const [range, setRange] = useState<Range>('12w');
+  const [monthly, setMonthly] = useState(false);
   const s = subject.settings;
   const snap = useMemo(
     () => S.buildSnapshot({ entries: bundle.entries, checks: bundle.checks, settings: { ...s, week_start_dow: s.week_start_dow ?? 0 }, today }),
@@ -24,6 +26,8 @@ export default function Progress({ subject, bundle, today }: { subject: Subject;
 
   return (
     <div>
+      <button className="btn ghost block" style={{ marginBottom: 12 }} onClick={() => setMonthly(true)}>📅 ملخص الشهر (صورة تشاركها)</button>
+      {monthly && <MonthlySheet subject={subject} bundle={bundle} today={today} onClose={() => setMonthly(false)} toast={toast} />}
       <div className="card">
         <div className="row between" style={{ marginBottom: 8 }}>
           <h2 style={{ margin: 0 }}>{subject.isOwner ? 'وزنك' : `وزن ${subject.name}`}</h2>

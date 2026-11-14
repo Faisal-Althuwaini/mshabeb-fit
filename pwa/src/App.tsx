@@ -181,7 +181,7 @@ export default function App() {
         ) : activeTab === 'today' && subject.isOwner && settings ? (
           <Today subject={subject} settings={settings} bundle={bundle} today={today} onChanged={refreshSoon} mutate={mutate} toast={toast.show} />
         ) : activeTab === 'progress' ? (
-          <Progress subject={subject} bundle={bundle} today={today} />
+          <Progress subject={subject} bundle={bundle} today={today} toast={toast.show} />
         ) : activeTab === 'coach' && subject.isOwner ? (
           <Coach subject={subject} today={today} toast={toast.show} />
         ) : activeTab === 'feed' ? (

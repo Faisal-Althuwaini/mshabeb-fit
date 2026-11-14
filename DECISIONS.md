@@ -147,6 +147,14 @@ Measured from Riyadh: each Supabase request answers in **0.6–2.6 s** (project 
 - **App:** the Flex tab shows post cards with a swipeable carousel (scroll-snap, dots, ١/٤), weight and change vs the previous post, measurement chips with changes, share switch and delete. «فليكس جديد» sheet: pick up to 4 photos, weight, collapsible measurements (last value as placeholder), caption, share. Compare picks two posts and an angle. The feed shows shared posts as carousels with weight and measurements; Progress has a measurements card (latest vs first). `get_bundle` returns `flex_posts` and `measurements`.
 - **Bot:** a Telegram album captioned «فليكس» becomes ONE post (album photos are processed in order per `media_group_id`, max 4, one reply). Albums without the caption become meal posts as before.
 
+### D25. Monthly summary image (2026-11-14)
+Progress → «📅 ملخص الشهر» draws one **1080×1350** JPEG (canvas) for any month with data (default: last month during days 1–5, otherwise this month so far). It shows:
+- before/after flex photos: the last post before the month, or the first in it, vs the latest in it, with dates and weights;
+- the weight change in words («نزلت ٠٫٨ كغ»), because a canvas mangles a leading minus in RTL text; computed from the average of the first 3 vs last 3 weigh-ins of the month;
+- best streak, «أقل شي» days, lifting sessions, the first measurement that changed, and the next ladder step.
+
+It can be shared via the iOS share sheet (WhatsApp…), downloaded, or posted to the friend's feed as a shared comparison flex post. Pure logic is in `pwa/src/lib/monthly.ts`.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.
