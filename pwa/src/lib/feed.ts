@@ -1,6 +1,6 @@
 // Pure: turn a Bundle into day cards for the watch feed (D14–D16).
 import type { Bundle } from './data';
-import type { Check, Comment, FeedEvent, FlexPhoto, ItemKind, MealPost, Reaction } from './types';
+import type { Check, Comment, FeedEvent, FlexPhoto, FlexPost, ItemKind, MealPost, Measurement, Reaction } from './types';
 import * as S from './stats';
 
 export type DayCard = {
@@ -8,11 +8,11 @@ export type DayCard = {
   weight: number | null;
   check: Check | null;
   meals: MealPost[];
-  flex: FlexPhoto[];
+  flex: { post: FlexPost; photos: FlexPhoto[]; m: Measurement | null }[];
   events: FeedEvent[];
 };
 
-/** Most recent first. Only shared flex photos appear in the feed (D15), for owner and watcher alike. */
+/** Most recent first. Only SHARED flex posts appear in the feed (D15/D24), for owner and watcher alike. */
 export function buildDays(b: Bundle, limitDays = 30): DayCard[] {
   const days = new Map<string, DayCard>();
   const card = (d: string) => {
@@ -22,7 +22,14 @@ export function buildDays(b: Bundle, limitDays = 30): DayCard[] {
   for (const e of b.entries) card(e.date).weight = e.weight;
   for (const c of b.checks) if (c.minimum_done || c.lifted) card(c.day).check = c;
   for (const m of b.meals) card(m.local_date).meals.push(m);
-  for (const f of b.flex) if (f.shared_with_watchers) card(f.taken_on).flex.push(f);
+  const photosByPost = new Map<number, FlexPhoto[]>();
+  for (const ph of b.flex) if (ph.post_id != null) (photosByPost.get(ph.post_id) || photosByPost.set(ph.post_id, []).get(ph.post_id)!).push(ph);
+  const mByDay = new Map((b.measurements || []).map((m) => [m.day, m]));
+  for (const post of b.flexPosts || []) {
+    if (!post.shared_with_watchers) continue;
+    const photos = (photosByPost.get(post.id) || []).sort((x, y) => x.position - y.position);
+    if (photos.length) card(post.taken_on).flex.push({ post, photos, m: post.is_comparison ? null : mByDay.get(post.taken_on) || null });
+  }
   for (const ev of b.events) card(ev.local_date).events.push(ev);
   for (const c of days.values()) c.meals.sort((a, z) => a.posted_at.localeCompare(z.posted_at));
   return [...days.values()].sort((a, z) => z.day.localeCompare(a.day)).slice(0, limitDays);

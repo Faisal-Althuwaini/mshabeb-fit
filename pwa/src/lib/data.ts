@@ -4,7 +4,7 @@ import { writeOrQueue, cacheGet, cacheSet } from './offline';
 import { resizeImage } from './image';
 import { isDemo, demoCoachMessages } from './demo';
 import type {
-  Check, CoachMessage, Comment, Entry, FeedEvent, FeedView, FlexPhoto, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
+  Check, CoachMessage, Comment, Entry, FeedEvent, FeedView, FlexPhoto, FlexPost, Measurement, MeasureKey, ItemKind, MealPost, Reaction, Settings, Watcher, WhoAmI,
 } from './types';
 
 const must = <T>(r: { data: T | null; error: { message: string } | null }): T => {
@@ -42,6 +42,8 @@ export type Bundle = {
   comments: Comment[];
   views: FeedView[];
   watchers: Watcher[];
+  flexPosts: FlexPost[];
+  measurements: Measurement[];
 };
 
 /** Everything for one person's feed / progress, in ONE round trip (RPC get_bundle). Cached on the device. */
@@ -60,6 +62,12 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
       comments: raw.comments as Comment[],
       views: raw.views as FeedView[],
       watchers: raw.watchers as Watcher[],
+      flexPosts: ((raw.flex_posts || []) as FlexPost[]).map((p) => ({ ...p, weight: num(p.weight) })),
+      measurements: ((raw.measurements || []) as Measurement[]).map((m) => {
+        const out = { ...m } as Measurement;
+        for (const k of ['waist_cm', 'chest_cm', 'hips_cm', 'arm_cm', 'thigh_cm', 'neck_cm', 'body_fat_pct'] as MeasureKey[]) out[k] = num(m[k]);
+        return out;
+      }),
     };
     await cacheSet(key, bundle);
     return bundle;
@@ -104,6 +112,36 @@ export async function addFlex(ownerId: number, day: string, file: Blob, opts: { 
     user_id: ownerId, taken_on: day, storage_path: path, weight_at_time: opts.weight,
     caption: opts.caption?.trim() || null, shared_with_watchers: !!opts.shared, is_comparison: !!opts.isComparison,
   }));
+}
+
+/** A flex post: up to 4 photos + weight + optional measurements (D24). */
+export async function createFlexPost(ownerId: number, day: string, files: Blob[], opts: {
+  weight: number | null; caption?: string; shared?: boolean; isComparison?: boolean; alreadySized?: boolean;
+  measurements?: Partial<Record<MeasureKey, number>>;
+}): Promise<number> {
+  const post = must(await supabase.from('flex_posts').insert({
+    user_id: ownerId, taken_on: day, weight: opts.weight, caption: opts.caption?.trim() || null,
+    shared_with_watchers: !!opts.shared, is_comparison: !!opts.isComparison,
+  }).select('id').single()) as { id: number };
+  const paths = await Promise.all(files.slice(0, 4).map((f) => uploadPhoto('flex-photos', ownerId, day, f, opts.alreadySized)));
+  must(await supabase.from('flex_photos').insert(paths.map((path, i) => ({
+    user_id: ownerId, taken_on: day, storage_path: path, weight_at_time: opts.weight, post_id: post.id, position: i,
+    shared_with_watchers: !!opts.shared, is_comparison: !!opts.isComparison,
+  }))));
+  const m = opts.measurements || {};
+  if (Object.keys(m).length) {
+    must(await supabase.from('body_measurements').upsert({ user_id: ownerId, day, ...m, updated_at: new Date().toISOString() }, { onConflict: 'user_id,day' }));
+  }
+  return post.id;
+}
+
+export async function setPostShared(id: number, shared: boolean) {
+  must(await supabase.from('flex_posts').update({ shared_with_watchers: shared }).eq('id', id)); // trigger syncs the photos
+}
+
+export async function deleteFlexPost(post: FlexPost, photos: FlexPhoto[]) {
+  must(await supabase.from('flex_posts').delete().eq('id', post.id)); // photo rows cascade
+  if (photos.length) await supabase.storage.from('flex-photos').remove(photos.map((p) => p.storage_path));
 }
 
 export async function setFlexShared(id: number, shared: boolean) {

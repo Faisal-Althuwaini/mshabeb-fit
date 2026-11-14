@@ -130,10 +130,12 @@ test('photo: meal post by default, flex with «فليكس» caption; non-coach i
 
     const f = ctx('فليكس الأسبوع ٢');
     await handlePhoto(f);
+    assert.equal(db.flex_posts.length, 1);
+    assert.equal(db.flex_posts[0].caption, 'الأسبوع ٢');
+    assert.equal(db.flex_posts[0].shared_with_watchers, false);
     assert.equal(db.flex_photos.length, 1);
-    assert.equal(db.flex_photos[0].shared_with_watchers, false);
-    assert.equal(db.flex_photos[0].caption, 'الأسبوع ٢');
-    assert.match(f.replies[0], /خاصة لك/);
+    assert.equal(db.flex_photos[0].post_id, db.flex_posts[0].id);
+    assert.match(f.replies[0], /خاص لك/);
 
     db.users.push({ telegram_user_id: 99 });
     const n = ctx('غدا', 99);
@@ -145,4 +147,28 @@ test('photo: meal post by default, flex with «فليكس» caption; non-coach i
   }
   assert.ok(FLEX_RE.test('flex: week 2'));
   assert.ok(!FLEX_RE.test('flexible lunch'));
+});
+
+test('photo album with «فليكس» → one flex post, max 4 photos, one reply', async () => {
+  const realFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer });
+  const replies = [];
+  const ctxAlbum = (caption) => ({
+    from: { id: OWNER },
+    message: { photo: [{ file_id: 'p' }], caption, media_group_id: 'album-1' },
+    telegram: { getFileLink: async (f) => `https://t/${f}` },
+    reply: async (t) => replies.push(t),
+  });
+  try {
+    // Telegram puts the caption on the first message only; updates may be handled concurrently.
+    await Promise.all([ctxAlbum('فليكس'), ctxAlbum(), ctxAlbum(), ctxAlbum(), ctxAlbum()].map((c) => handlePhoto(c)));
+    assert.equal(db.flex_posts.length, 1);
+    assert.equal(db.flex_photos.length, 4);
+    assert.deepEqual(db.flex_photos.map((p) => p.position), [0, 1, 2, 3]);
+    assert.equal(db.meal_posts.length, 0);
+    assert.equal(replies.filter((r) => /حفظت الفليكس/.test(r)).length, 1);
+    assert.ok(replies.some((r) => /٤ صور بس|4 صور بس/.test(r)));
+  } finally {
+    global.fetch = realFetch;
+  }
 });

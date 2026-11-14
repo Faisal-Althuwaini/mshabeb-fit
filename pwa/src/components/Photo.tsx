@@ -14,7 +14,7 @@ export default function Photo({ bucket, path, className, alt = '' }: { bucket: '
   if (isDemo) {
     return (
       <div className={className} style={{ background: 'linear-gradient(135deg, #3a5a40, #a3b18a)', display: 'grid', placeItems: 'center', fontSize: 64 }} role="img" aria-label="صورة تجريبية">
-        🍗🍚🥗
+        {path.includes('flex') ? '💪' : '🍗🍚🥗'}
       </div>
     );
   }

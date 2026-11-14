@@ -5,6 +5,8 @@ import type { Subject, WhoAmI } from '../lib/types';
 import { buildDays, indexSocial, itemKey } from '../lib/feed';
 import { ar, dateLabel, timeAgo } from '../lib/format';
 import Photo from '../components/Photo';
+import Carousel from '../components/Carousel';
+import { MEASURE_FIELDS } from '../lib/types';
 import Social from '../components/Social';
 import PushCard from '../components/PushCard';
 
@@ -95,11 +97,18 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
               {socialFor('meal', m.id)}
             </div>
           ))}
-          {d.flex.map((f) => (
-            <div key={f.id} className="post">
-              <Photo bucket="flex-photos" path={f.storage_path} className="ph" alt="فليكس" />
-              <div className="cap">💪 فليكس{f.weight_at_time != null && <> · {ar(f.weight_at_time)}</>}{f.caption && <> · {f.caption}</>}</div>
-              {socialFor('flex', f.id)}
+          {d.flex.map(({ post, photos, m }) => (
+            <div key={post.id} className="post">
+              <Carousel bucket="flex-photos" paths={photos.map((p) => p.storage_path)} alt="فليكس" />
+              <div className="cap">
+                💪 {post.is_comparison ? 'قبل / بعد' : 'فليكس'}{post.weight != null && <> · <b>{ar(post.weight)}</b> كغ</>}{post.caption && !post.is_comparison && <> · {post.caption}</>}
+              </div>
+              {m && (
+                <div className="mchips" style={{ padding: '0 16px' }}>
+                  {MEASURE_FIELDS.filter((f) => m[f.key] != null).map((f) => <span key={f.key}>{f.label} <b>{ar(m[f.key])}</b></span>)}
+                </div>
+              )}
+              {socialFor('flex', post.id)}
             </div>
           ))}
         </article>

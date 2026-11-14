@@ -19,8 +19,10 @@ const PK = {
   feed_reactions: ['owner_user_id', 'item_kind', 'item_ref', 'author_auth_user_id'],
   feed_comments: ['id'],
   push_subscriptions: ['id'],
+  flex_posts: ['id'],
+  body_measurements: ['user_id', 'day'],
 };
-const AUTO_ID = new Set(['coach_messages', 'meal_posts', 'flex_photos', 'feed_comments', 'push_subscriptions', 'feed_events']);
+const AUTO_ID = new Set(['coach_messages', 'meal_posts', 'flex_photos', 'feed_comments', 'push_subscriptions', 'feed_events', 'flex_posts']);
 const SETTINGS_DEFAULTS = {
   coach_enabled: false, start_weight: null, goal_weight: null, target_loss_per_4w: 3, ladder_step: 2,
   minimum_action: 'مشي ١٥ دقيقة', lifting_days_required: 2, week_start_dow: 0,

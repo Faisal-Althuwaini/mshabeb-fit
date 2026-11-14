@@ -141,6 +141,12 @@ Measured from Riyadh: each Supabase request answers in **0.6–2.6 s** (project 
 - **Effects:** everyone signs in once more (new JWT keys). `OPENROUTER_API_KEY` had to be set again as a function secret on the new project.
 - **Old project** `Fitness-telegram` (Sydney) kept untouched as a fallback, then paused; Himmah resumed. The new DB password and keys are in the git-ignored `.secrets/`.
 
+### D24. Flex v2: posts of up to 4 photos, weight, body measurements (2026-11-14)
+- **`flex_posts`** (migration `20261114000000`) groups up to **4** `flex_photos` (`post_id`, `position`; a trigger blocks a 5th). The post stores `taken_on`, `weight` (pre-filled in the app from the latest weigh-in, editable), caption, `shared_with_watchers` (a trigger mirrors it onto the photos, so the storage read policy keeps working) and `is_comparison`. Legacy single photos were wrapped into posts.
+- **`body_measurements`** (one row per day, all optional): waist, chest, hips, arm, thigh, neck (cm) and body-fat %. **Faisal: watchers may see them too** (migration `20261114010000`, read-only).
+- **App:** the Flex tab shows post cards with a swipeable carousel (scroll-snap, dots, ١/٤), weight and change vs the previous post, measurement chips with changes, share switch and delete. «فليكس جديد» sheet: pick up to 4 photos, weight, collapsible measurements (last value as placeholder), caption, share. Compare picks two posts and an angle. The feed shows shared posts as carousels with weight and measurements; Progress has a measurements card (latest vs first). `get_bundle` returns `flex_posts` and `measurements`.
+- **Bot:** a Telegram album captioned «فليكس» becomes ONE post (album photos are processed in order per `media_group_id`, max 4, one reply). Albums without the caption become meal posts as before.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

@@ -54,8 +54,26 @@ export type MealPost = {
 export type FlexPhoto = {
   id: number; user_id: number; taken_on: string; storage_path: string;
   weight_at_time: number | null; shared_with_watchers: boolean; caption: string | null;
-  is_comparison: boolean; created_at: string;
+  is_comparison: boolean; created_at: string; post_id: number | null; position: number;
 };
+export type FlexPost = {
+  id: number; user_id: number; taken_on: string; weight: number | null; caption: string | null;
+  shared_with_watchers: boolean; is_comparison: boolean; created_at: string;
+};
+export type Measurement = {
+  user_id: number; day: string; waist_cm: number | null; chest_cm: number | null; hips_cm: number | null;
+  arm_cm: number | null; thigh_cm: number | null; neck_cm: number | null; body_fat_pct: number | null;
+};
+export type MeasureKey = 'waist_cm' | 'chest_cm' | 'hips_cm' | 'arm_cm' | 'thigh_cm' | 'neck_cm' | 'body_fat_pct';
+export const MEASURE_FIELDS: { key: MeasureKey; label: string; unit: string }[] = [
+  { key: 'waist_cm', label: 'الخصر', unit: 'سم' },
+  { key: 'chest_cm', label: 'الصدر', unit: 'سم' },
+  { key: 'hips_cm', label: 'الورك', unit: 'سم' },
+  { key: 'arm_cm', label: 'الذراع', unit: 'سم' },
+  { key: 'thigh_cm', label: 'الفخذ', unit: 'سم' },
+  { key: 'neck_cm', label: 'الرقبة', unit: 'سم' },
+  { key: 'body_fat_pct', label: 'نسبة الدهون', unit: '٪' },
+];
 export type FeedEvent = { id: number; owner_user_id: number; kind: 'missed_days' | 'milestone'; local_date: string; data: { days?: number; step?: number; avg?: number } | null; created_at: string };
 export type ItemKind = 'meal' | 'flex' | 'day';
 export type Reaction = { owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; emoji: string; created_at: string };

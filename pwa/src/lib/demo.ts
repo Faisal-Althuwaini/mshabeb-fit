@@ -23,11 +23,20 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
   const bundle: Bundle = {
     entries, checks,
     meals: [{ id: 1, user_id: 1, local_date: S.addDays(today, -1), posted_at: new Date(Date.now() - 86400000).toISOString(), storage_path: 'demo.jpg', caption: 'غدا: صدر دجاج ورز', source: 'telegram' }],
-    flex: [],
+    flex: [0, 1, 2].map((i) => ({ id: 100 + i, user_id: 1, taken_on: S.addDays(today, -1), storage_path: `demo-flex-${i}`, weight_at_time: 107.3, shared_with_watchers: true, caption: null, is_comparison: false, created_at: new Date().toISOString(), post_id: 11, position: i }))
+      .concat([0, 1].map((i) => ({ id: 200 + i, user_id: 1, taken_on: S.addDays(today, -36), storage_path: `demo-flex-old-${i}`, weight_at_time: 110.6, shared_with_watchers: false, caption: null, is_comparison: false, created_at: new Date().toISOString(), post_id: 10, position: i }))),
     events: [],
     reactions: [{ owner_user_id: 1, item_kind: 'day', item_ref: S.addDays(today, -1), author_auth_user_id: 'friend', emoji: '🔥', created_at: new Date().toISOString() }],
     views: [{ owner_user_id: 1, item_kind: 'meal', item_ref: '1', viewer_auth_user_id: 'friend', seen_at: new Date().toISOString() }],
     watchers: [{ owner_user_id: 1, watcher_auth_user_id: 'friend', display_name: 'سعد', created_at: new Date().toISOString() }],
+    flexPosts: [
+      { id: 11, user_id: 1, taken_on: S.addDays(today, -1), weight: 107.3, caption: 'الأسبوع ١٠', shared_with_watchers: true, is_comparison: false, created_at: new Date().toISOString() },
+      { id: 10, user_id: 1, taken_on: S.addDays(today, -36), weight: 110.6, caption: null, shared_with_watchers: false, is_comparison: false, created_at: new Date().toISOString() },
+    ],
+    measurements: [
+      { user_id: 1, day: S.addDays(today, -36), waist_cm: 108, chest_cm: 118, hips_cm: 114, arm_cm: 38, thigh_cm: 66, neck_cm: 44, body_fat_pct: 31 },
+      { user_id: 1, day: S.addDays(today, -1), waist_cm: 104.5, chest_cm: 116, hips_cm: 112, arm_cm: 38.5, thigh_cm: 65, neck_cm: 43, body_fat_pct: null },
+    ],
     comments: [{ id: 1, owner_user_id: 1, item_kind: 'meal', item_ref: '1', author_auth_user_id: 'friend', author_name: 'سعد', body: 'كفو 👏 بس وين السلطة؟', created_at: new Date().toISOString() }],
   };
   const who: WhoAmI = role === 'owner'

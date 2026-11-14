@@ -6,6 +6,7 @@ import { targetLine } from '../lib/feed';
 import { ar, arInt, daysAr } from '../lib/format';
 import WeightChart from '../components/WeightChart';
 import Ladder from '../components/Ladder';
+import { MEASURE_FIELDS } from '../lib/types';
 
 type Range = '4w' | '12w' | 'all';
 
@@ -48,6 +49,24 @@ export default function Progress({ subject, bundle, today }: { subject: Subject;
         <div className="stat"><b>{arInt(snap.bestStreak)}</b><span>أطول سلسلة</span></div>
         <div className="stat"><b>{arInt(liftWeeks)}</b><span>أسابيع حديد ✓</span></div>
       </div>
+
+      {bundle.measurements.length > 0 && (() => {
+        const first = bundle.measurements[0];
+        const last = bundle.measurements[bundle.measurements.length - 1];
+        const rows = MEASURE_FIELDS.filter((f) => last[f.key] != null);
+        return rows.length ? (
+          <div className="card">
+            <h2>📏 القياسات</h2>
+            <div className="mchips">
+              {rows.map((f) => {
+                const d = first !== last && first[f.key] != null ? Math.round(((last[f.key] as number) - (first[f.key] as number)) * 10) / 10 : null;
+                return <span key={f.key}>{f.label} <b>{ar(last[f.key])}</b> {f.unit}{d != null && d !== 0 && <span className={d < 0 ? 'down' : 'up'}> {S.formatDelta(d)}</span>}</span>;
+              })}
+            </div>
+            {first !== last && <p className="small faint" style={{ marginBottom: 0 }}>الفرق من أول قياس ({first.day})</p>}
+          </div>
+        ) : null;
+      })()}
 
       <div className="card">
         <h2>سلّم النزول</h2>
