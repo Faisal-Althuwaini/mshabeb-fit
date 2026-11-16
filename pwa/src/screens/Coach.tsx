@@ -27,6 +27,7 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
     return () => window.clearInterval(t);
   }, [sending]);
   const bottom = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
 
   const load = () => data.loadCoachMessages(subject.ownerId).then(setMsgs).catch((e) => toast(e.message));
   useEffect(() => {
@@ -49,7 +50,11 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
   const log = useMemo(() => (msgs || []).filter((m) => KIND_LABEL[m.kind]), [msgs]);
   const usedToday = useMemo(() => (msgs || []).filter((m) => m.kind === 'chat_user' && m.created_at.slice(0, 10) === new Date().toISOString().slice(0, 10)).length, [msgs]);
 
-  useEffect(() => { bottom.current?.scrollIntoView({ block: 'end' }); }, [chat.length]);
+  // Scroll the chat box only — never the page (scrollIntoView moved the whole screen on iPhone).
+  useEffect(() => {
+    const el = box.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chat.length, sending]);
 
   const send = async (msg: string) => {
     const m = msg.trim();
@@ -98,7 +103,7 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
           <h2 style={{ margin: 0 }}>💬 كلّم مشبب</h2>
           <span className="small faint">{(remaining ?? Math.max(0, 30 - usedToday)).toLocaleString('ar-SA')} رسالة باقية اليوم</span>
         </div>
-        <div className="bubbles">
+        <div className="bubbles" ref={box}>
           {chat.length === 0 && <p className="muted small center">اسأله أي شي عن نزولك. يعرف أرقامك وأسبوعك.</p>}
           {chat.map((m) => (
             <div key={m.id} className={`bubble ${m.kind === 'chat_user' ? 'me' : 'him'}`}>

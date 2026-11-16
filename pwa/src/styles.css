@@ -80,6 +80,11 @@
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); }
 body { font-size: 16px; line-height: 1.5; overscroll-behavior-y: none; }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* iOS Safari zooms into any field whose text is under 16px — keep every field at 16px or more. */
+input, select, textarea { font-size: max(16px, 1em); }
+/* While typing, hide the bottom tab bar (iOS otherwise floats it above the keyboard). */
+.app:has(input:focus, textarea:focus) .tabbar, .kb-open .tabbar { display: none; }
+.app:has(input:focus, textarea:focus) .page, .kb-open .page { padding-bottom: calc(env(safe-area-inset-bottom) + 16px); }
 img { display: block; max-width: 100%; }
 
 .app { min-height: 100dvh; display: flex; flex-direction: column; }
@@ -239,7 +244,7 @@ label.field > span { display: block; font-size: 14px; color: var(--ink-2); margi
 .comment b { font-size: 13px; }
 .comment .x { border: 0; background: none; color: var(--ink-3); cursor: pointer; font-size: 12px; padding: 0 4px; }
 .comment-form { display: flex; gap: 8px; margin-top: 10px; }
-.comment-form .input { min-height: 40px; font-size: 15px; }
+.comment-form .input { min-height: 40px; font-size: 16px; }
 .comment-form .btn { min-height: 40px; padding: 0 14px; }
 
 /* Flex grid */
