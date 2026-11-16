@@ -4,6 +4,9 @@ import type { CoachMessage, Subject, WeeklyReport } from '../lib/types';
 import { dateLabel, timeAgo } from '../lib/format';
 import * as S from '../lib/stats';
 
+// Rotating lines while مشبب thinks (changes every ~1.8 s).
+const TYPING_LINES = ['مشبب يفكر', 'يشوف أرقامك', 'يحسب المتوسط', 'يكتب لك'];
+
 const QUICK = ['وش أسوي اليوم؟', 'ليه وزني زاد هالأسبوع؟', 'أبي تحفيز 💪', 'عندي عزيمة الليلة، وش أسوي؟'];
 const KIND_LABEL: Partial<Record<CoachMessage['kind'], string>> = {
   nudge_morning: '☀️ تذكير الصبح', nudge_firm: '💪 لا تغيب مرتين', comeback: '👋 رجعة', lifting_check: '🏋️ الحديد',
@@ -17,6 +20,12 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
   const [sending, setSending] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [typingIdx, setTypingIdx] = useState(0);
+  useEffect(() => {
+    if (!sending) { setTypingIdx(0); return; }
+    const t = window.setInterval(() => setTypingIdx((i) => (i + 1) % TYPING_LINES.length), 1800);
+    return () => window.clearInterval(t);
+  }, [sending]);
   const bottom = useRef<HTMLDivElement>(null);
 
   const load = () => data.loadCoachMessages(subject.ownerId).then(setMsgs).catch((e) => toast(e.message));
@@ -97,7 +106,15 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
               <span>{m.content}</span>
             </div>
           ))}
-          {sending && <div className="bubble him"><img className="avatar" src="/icons/mushabbab-avatar.jpg" alt="" /><span className="typing">…</span></div>}
+          {sending && (
+            <div className="bubble him" aria-live="polite">
+              <img className="avatar thinking" src="/icons/mushabbab-avatar.jpg" alt="" />
+              <span className="typing">
+                <span className="typing-label">{TYPING_LINES[typingIdx]}</span>
+                <span className="typing-dots"><i /><i /><i /></span>
+              </span>
+            </div>
+          )}
           <div ref={bottom} />
         </div>
         {chat.length === 0 && (

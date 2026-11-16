@@ -245,7 +245,7 @@ export const cachedCoachMessages = (ownerId: number) => cacheGet<CoachMessage[]>
 
 /** Chat with مشبب (edge function coach-chat). */
 export async function sendChat(message: string): Promise<{ reply: string; remaining: number; limited?: boolean }> {
-  if (isDemo()) return { reply: `(تجربة) وصلتني: ${message}`, remaining: 27 };
+  if (isDemo()) { await new Promise((r) => setTimeout(r, 4000)); return { reply: `(تجربة) وصلتني: ${message}`, remaining: 27 }; }
   const { data: d, error } = await supabase.functions.invoke('coach-chat', { body: { message } });
   if (error) {
     // 429 (daily limit) still carries a friendly reply in the body
