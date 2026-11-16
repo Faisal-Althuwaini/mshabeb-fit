@@ -21,6 +21,12 @@ const json = (body: unknown, status: number, origin: string | null) =>
 
 const CHAT_RULES = `\nYou are chatting inside his app. Reply in 1–4 short sentences of Saudi dialect. Use his numbers from the context when relevant. Plain text, no markdown headings, at most one emoji.`;
 
+/** Trim a cut-off reply at its last complete sentence (keeps it if there is none). */
+function cutAtSentence(t: string): string {
+  const i = Math.max(t.lastIndexOf('.'), t.lastIndexOf('؟'), t.lastIndexOf('!'), t.lastIndexOf('\n'), t.lastIndexOf('…'));
+  return i > t.length * 0.4 ? t.slice(0, i + 1).trim() : t.trim();
+}
+
 async function askLLM(messages: { role: string; content: string }[]): Promise<string | null> {
   const key = Deno.env.get('OPENROUTER_API_KEY');
   if (!key) return null;
@@ -32,13 +38,23 @@ async function askLLM(messages: { role: string; content: string }[]): Promise<st
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'X-Title': 'Mushabbab' },
-      body: JSON.stringify({ model, models: fallbacks.length ? [model, ...fallbacks] : undefined, messages, temperature: 0.6, max_tokens: 400 }),
+      // These models reason before answering; leave room for it (D26) and ask for low effort.
+      body: JSON.stringify({
+        model, models: fallbacks.length ? [model, ...fallbacks] : undefined, messages, temperature: 0.6,
+        max_tokens: 1500, reasoning: { effort: 'low', exclude: true },
+      }),
       signal: ctrl.signal,
     });
     if (!res.ok) { console.error('LLM HTTP', res.status, (await res.text()).slice(0, 200)); return null; }
     const out = await res.json();
-    const text = out.choices?.[0]?.message?.content?.trim();
-    return text && /[؀-ۿ]/.test(text) ? text.slice(0, 1200) : null;
+    const choice = out.choices?.[0];
+    let text: string = (choice?.message?.content || '').trim();
+    if (!text || !/[\u0600-\u06FF]/.test(text)) {
+      console.error('LLM empty reply', choice?.finish_reason, JSON.stringify(out.usage || {}));
+      return null;
+    }
+    if (choice?.finish_reason === 'length') text = cutAtSentence(text);
+    return text.length > 1500 ? cutAtSentence(text.slice(0, 1500)) : text;
   } catch (e) {
     console.error('LLM error', (e as Error).message);
     return null;
@@ -86,7 +102,7 @@ Deno.serve(async (req) => {
     db.from('weight_entries').select('weight, recorded_at').eq('user_id', userId).order('recorded_at'),
     db.from('daily_checks').select('day, minimum_done, lifted, workout_label').eq('user_id', userId).order('day'),
     db.from('coach_messages').select('kind, content').eq('user_id', userId).in('kind', ['chat_user', 'chat_coach'])
-      .order('created_at', { ascending: false }).limit(10),
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(10),
     db.from('coach_messages').select('content').eq('user_id', userId).not('kind', 'in', '(chat_user,chat_coach)')
       .order('created_at', { ascending: false }).limit(3),
   ]);

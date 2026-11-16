@@ -6,7 +6,7 @@
 //   LLM_MODEL            default deepseek/deepseek-v4.1-flash
 //   LLM_FALLBACK_MODELS  comma-separated, default openai/gpt-oss-120b ("" to disable)
 //   LLM_BASE_URL         default https://openrouter.ai/api/v1
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 15000; // reasoning models need a bit longer than 8 s
 
 const cfg = () => ({
   key: process.env.OPENROUTER_API_KEY || '',
@@ -40,7 +40,7 @@ function extractJson(text) {
  * Chat completion that must return a JSON object.
  * Throws on network error / timeout / non-2xx / unparseable output so callers can fall back.
  */
-async function chatJson(messages, { temperature = 0.2, maxTokens = 400, timeoutMs = TIMEOUT_MS } = {}) {
+async function chatJson(messages, { temperature = 0.2, maxTokens = 1500, timeoutMs = TIMEOUT_MS } = {}) {
   const c = cfg();
   if (!c.key) throw new Error('OPENROUTER_API_KEY not set');
   const controller = new AbortController();
@@ -50,7 +50,9 @@ async function chatJson(messages, { temperature = 0.2, maxTokens = 400, timeoutM
       model: c.model,
       messages,
       temperature,
-      max_tokens: maxTokens,
+      // Both default models reason before answering; give them room and ask for low effort (D26).
+      max_tokens: Math.max(maxTokens, 1200),
+      reasoning: { effort: 'low', exclude: true },
       response_format: { type: 'json_object' },
     };
     if (c.fallbacks.length) body.models = [c.model, ...c.fallbacks]; // OpenRouter model fallback

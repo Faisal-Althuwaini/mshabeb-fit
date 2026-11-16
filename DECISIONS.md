@@ -155,6 +155,10 @@ Progress → «📅 ملخص الشهر» draws one **1080×1350** JPEG (canvas)
 
 It can be shared via the iOS share sheet (WhatsApp…), downloaded, or posted to the friend's feed as a shared comparison flex post. Pure logic is in `pwa/src/lib/monthly.ts`.
 
+### D26. LLM replies cut off / empty: reasoning models need token room; chat order by (time, id) (2026-11-16)
+- DeepSeek V4.1 Flash and gpt-oss-120b both **reason before answering**: with `max_tokens: 400`, reasoning (≈140–190+ tokens on a short prompt, more with the full context) left too little room. Replies were cut off («لكن بالأمانة.») or came back empty, which triggered the fallback text. Now the chat and the bot use `max_tokens` ≥ 1200–1500 plus `reasoning: { effort: 'low', exclude: true }`. A reply with `finish_reason: 'length'` is trimmed at its last complete sentence, and empty replies are logged with usage. Bot LLM timeout raised from 8 s to 15 s.
+- **Order:** a user message and its reply are inserted together, so they share `created_at`. The app and the function now order by `created_at`, then `id`, so the user row (inserted first) always comes before the reply.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

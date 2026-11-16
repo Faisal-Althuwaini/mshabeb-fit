@@ -27,7 +27,16 @@ export default function Coach({ subject, today, toast }: { subject: Subject; tod
 
   const report = useMemo(() => msgs?.find((m) => m.kind === 'weekly_report'), [msgs]);
   const alert = useMemo(() => msgs?.find((m) => m.kind === 'trend_alert' && S.daysBetween(m.created_at.slice(0, 10), today) <= 7), [msgs, today]);
-  const chat = useMemo(() => (msgs || []).filter((m) => m.kind === 'chat_user' || m.kind === 'chat_coach').slice(0, 40).reverse(), [msgs]);
+  // Oldest → newest. A user message and its reply share a timestamp, so ties break by id (the user
+  // row is inserted first). Optimistic rows (negative ids) go last, in the order they were added.
+  const chat = useMemo(() => (msgs || [])
+    .filter((m) => m.kind === 'chat_user' || m.kind === 'chat_coach')
+    .slice(0, 40)
+    .sort((a, b) => {
+      if (a.id < 0 || b.id < 0) return a.id < 0 && b.id < 0 ? b.id - a.id : a.id < 0 ? 1 : -1;
+      const ta = Date.parse(a.created_at), tb = Date.parse(b.created_at);
+      return ta !== tb ? ta - tb : a.id - b.id;
+    }), [msgs]);
   const log = useMemo(() => (msgs || []).filter((m) => KIND_LABEL[m.kind]), [msgs]);
   const usedToday = useMemo(() => (msgs || []).filter((m) => m.kind === 'chat_user' && m.created_at.slice(0, 10) === new Date().toISOString().slice(0, 10)).length, [msgs]);
 

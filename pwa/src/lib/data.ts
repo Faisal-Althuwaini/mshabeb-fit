@@ -237,7 +237,7 @@ export async function stopWatching(ownerId: number, me: string) {
 export async function loadCoachMessages(ownerId: number): Promise<CoachMessage[]> {
   if (isDemo()) return demoCoachMessages() as unknown as CoachMessage[];
   const rows = must(await supabase.from('coach_messages').select('id, kind, content, data, created_at, used_fallback')
-    .eq('user_id', ownerId).order('created_at', { ascending: false }).limit(150)) as CoachMessage[];
+    .eq('user_id', ownerId).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(150)) as CoachMessage[];
   await cacheSet(`coach:${ownerId}`, rows);
   return rows;
 }
