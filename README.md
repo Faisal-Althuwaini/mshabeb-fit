@@ -77,26 +77,22 @@ Installs to your home screen, with push notifications, dark mode, and right-to-l
 
 ```mermaid
 flowchart LR
-  subgraph Phone
-    PWA["PWA<br/>React + Vite"]
-  end
-  subgraph Supabase["Supabase · Mumbai"]
-    DB[("Postgres<br/>+ RLS")]
-    CHAT["coach-chat"]
-    GH["google-health"]
-    HS["health-sync"]
-  end
-  VPS["VPS · Node + pm2<br/>nudges · weekly report · sync cron"]
-  OR["OpenRouter<br/>DeepSeek V4.1 Flash"]
+  PWA["PWA: React + Vite"]
+  DB[("Supabase Postgres + RLS")]
+  CHAT["Edge function: coach-chat"]
+  GH["Edge function: google-health"]
+  VPS["VPS jobs: Node + pm2"]
+  OR["OpenRouter LLM"]
   GAPI["Google Health API"]
 
-  PWA -- "get_bundle RPC" --> DB
-  PWA --> CHAT --> OR
-  VPS -- "every 20 min" --> GH --> GAPI
+  PWA -->|get_bundle| DB
+  PWA --> CHAT
+  CHAT --> OR
+  VPS -->|every 20 min| GH
+  GH --> GAPI
   GH --> DB
   VPS --> OR
-  VPS -- "Web Push" --> PWA
-  HS --> DB
+  VPS -->|Web Push| PWA
 ```
 
 | Part | Choice |
