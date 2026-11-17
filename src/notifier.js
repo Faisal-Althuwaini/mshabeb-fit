@@ -215,11 +215,97 @@ async function processMissedDays(now = new Date()) {
   return created;
 }
 
+// ── Owner posts → watchers (D31): meals, shared Flex posts, the day's weight ──────────────
+
+const STALE_MS = 12 * 60 * 60 * 1000; // never announce something older than this
+const SETTLE_MS = 2 * 60 * 1000; // wait so quick posts batch, and an instant edit/delete isn't announced
+
+/** Pure: one push for everything new from one owner. */
+function buildPostPush(name, { meals = 0, flex = 0, weight = null }, ar = (n) => String(n)) {
+  const parts = [];
+  if (weight != null) parts.push(`وزنه ${ar(weight)} كغ ⚖️`);
+  if (meals) parts.push(meals === 1 ? 'وجبة 🍽️' : meals === 2 ? 'وجبتين 🍽️' : `${ar(meals)} وجبات 🍽️`);
+  if (flex) parts.push(flex === 1 ? 'فليكس 💪' : `${ar(flex)} فليكس 💪`);
+  if (parts.length === 0) return null;
+  const only = parts.length === 1;
+  let title;
+  if (only && weight != null) title = `${name} سجّل وزنه: ${ar(weight)} كغ ⚖️`;
+  else if (only && meals) title = meals === 1 ? `${name} نزّل وجبة 🍽️` : `${name} نزّل ${parts[0]}`;
+  else if (only && flex) title = `${name} شارك فليكس 💪`;
+  else title = `${name} نزّل جديد`;
+  const url = only && flex ? '/feed' : only && weight != null ? '/progress' : '/feed';
+  return { title, body: only ? 'افتح وشوف 👀' : parts.join(' · '), url, tag: `posts-${name}` };
+}
+
+async function processOwnerPosts(now = new Date()) {
+  const S = await loadStats();
+  const supabase = getSupabase();
+  const [m, f, w] = await Promise.all([
+    supabase.from('meal_posts').select('id, user_id, posted_at').is('notified_at', null).limit(300),
+    supabase.from('flex_posts').select('id, user_id, created_at, shared_with_watchers').is('notified_at', null).limit(300),
+    supabase.from('weight_entries').select('id, user_id, weight, recorded_at, created_at').is('notified_at', null).limit(300),
+  ]);
+  for (const r of [m, f, w]) if (r.error) throw r.error;
+  const stamp = async (table, ids) => {
+    if (ids.length) await supabase.from(table).update({ notified_at: now.toISOString() }).in('id', ids);
+  };
+  const fresh = (t) => now - new Date(t) < STALE_MS;
+
+  // Private Flex posts wait (they're announced if shared later); stale rows are stamped silently.
+  const meals = (m.data || []);
+  const flex = (f.data || []).filter((p) => p.shared_with_watchers || !fresh(p.created_at));
+  const weights = (w.data || []);
+  const byOwner = new Map();
+  const add = (row, kind) => {
+    const k = String(row.user_id);
+    if (!byOwner.has(k)) byOwner.set(k, { meals: [], flex: [], weights: [] });
+    byOwner.get(k)[kind].push(row);
+  };
+  meals.forEach((r) => add(r, 'meals'));
+  flex.forEach((r) => add(r, 'flex'));
+  weights.forEach((r) => add(r, 'weights'));
+  if (byOwner.size === 0) return 0;
+
+  const owners = await loadOwners([...byOwner.keys()]);
+  let sent = 0;
+  for (const [ownerId, items] of byOwner) {
+    try {
+      const owner = owners.get(ownerId);
+      const settings = await coach.getSettings(ownerId).catch(() => ({}));
+      const freshMeals = items.meals.filter((r) => fresh(r.posted_at));
+      const freshFlex = items.flex.filter((r) => r.shared_with_watchers && fresh(r.created_at));
+      const freshWeights = items.weights.filter((r) => fresh(r.created_at));
+      const hasNews = freshMeals.length || freshFlex.length || freshWeights.length;
+      const newest = Math.max(0, ...items.meals.map((r) => +new Date(r.posted_at)), ...items.flex.map((r) => +new Date(r.created_at)), ...items.weights.map((r) => +new Date(r.created_at)));
+      if (hasNews && now - newest < SETTLE_MS) continue;
+      const watchers = owner?.watchers.map((x) => x.authId) || [];
+      // Quiet hours: hold fresh news for later (one batched push when they end).
+      if (hasNews && watchers.length && inQuietHours(S, settings, now)) continue;
+
+      if (hasNews && watchers.length) {
+        const latest = freshWeights.sort((a, z) => z.recorded_at.localeCompare(a.recorded_at))[0];
+        const msg = buildPostPush(owner.name, { meals: freshMeals.length, flex: freshFlex.length, weight: latest ? Number(latest.weight) : null }, (n) => S.toArabicDigits(n));
+        if (msg) {
+          await push.sendToAuthUsers(watchers, { ...msg, tag: `posts-${ownerId}` }).catch((e) => console.error('posts push error:', e.message));
+          sent += 1;
+        }
+      }
+      await stamp('meal_posts', items.meals.map((r) => r.id));
+      await stamp('flex_posts', items.flex.map((r) => r.id));
+      await stamp('weight_entries', items.weights.map((r) => r.id));
+    } catch (e) {
+      console.error('owner posts error for', ownerId, e.message);
+    }
+  }
+  return sent;
+}
+
 function startNotifier(cron) {
   cron.schedule('* * * * *', async () => {
     try {
       await processComments();
       await processReactions();
+      await processOwnerPosts();
     } catch (e) {
       console.error('notifier error:', e.message);
     }
@@ -233,6 +319,8 @@ module.exports = {
   processComments,
   processReactions,
   processMissedDays,
+  processOwnerPosts,
+  buildPostPush,
   recipientsFor,
   inQuietHours,
   _lastReactionPush: lastReactionPush,

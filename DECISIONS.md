@@ -229,3 +229,8 @@ The migration must go first: the new code writes `weight_entries.source` and rea
 - A visitor who isn't signed in and isn't running from the home screen sees an install guide instead of sign-up (`components/InstallGate.tsx`, `lib/install.ts`). Reason: iOS keeps a home-screen app's storage separate from Safari (signing up in Safari means signing in again) and Web Push only works in the installed app.
 - Steps per platform: iPhone Safari (Share → Add to Home Screen), other iOS browsers, in-app browsers (Instagram, TikTok…: open in the browser), Android (Chrome's install prompt when available, else the ⋮ menu), desktop (open on your phone).
 - Android and desktop get a small «أكمل من المتصفح» escape (remembered on the device) in case a browser can't install; iPhone has none. Signed-in browser sessions are never gated. In dev, add `?gate` to see it.
+
+## D31 · Watchers hear about meals, shared Flex and the day's weight (2026-11-17)
+- Faisal wanted watchers notified about everything. `meal_posts`, `flex_posts`, `weight_entries` got `notified_at` (migration `20261117300000`, existing rows stamped so nothing old is sent).
+- The notifier (every minute, `processOwnerPosts`) groups new rows per owner into **one** push: «فيصل سجّل وزنه: ١١٠٫٥ كغ ⚖️», «فيصل نزّل وجبة 🍽️», «فيصل شارك فليكس 💪», or «فيصل نزّل جديد» with a summary.
+- It waits 2 minutes after the newest item (quick posts batch; an instant edit or delete isn't announced), holds news during the owner's quiet hours, and never announces anything older than 12 hours. Private Flex posts wait and are announced if shared later; an edited weight on the same day is not re-sent.

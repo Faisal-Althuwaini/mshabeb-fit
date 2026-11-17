@@ -172,3 +172,14 @@ test('photo album with «فليكس» → one flex post, max 4 photos, one reply
     global.fetch = realFetch;
   }
 });
+
+test('buildPostPush: one item, several items, nothing', () => {
+  const ar = (n) => String(n);
+  assert.equal(notifier.buildPostPush('فيصل', { weight: 110.5 }, ar).title, 'فيصل سجّل وزنه: 110.5 كغ ⚖️');
+  assert.equal(notifier.buildPostPush('فيصل', { meals: 1 }, ar).title, 'فيصل نزّل وجبة 🍽️');
+  assert.equal(notifier.buildPostPush('فيصل', { flex: 1 }, ar).title, 'فيصل شارك فليكس 💪');
+  const many = notifier.buildPostPush('فيصل', { meals: 2, flex: 1, weight: 110 }, ar);
+  assert.equal(many.title, 'فيصل نزّل جديد');
+  assert.match(many.body, /وجبتين/);
+  assert.equal(notifier.buildPostPush('فيصل', {}, ar), null);
+});
