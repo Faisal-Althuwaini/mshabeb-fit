@@ -5,7 +5,6 @@ import type { Settings } from '../lib/types';
 import * as S from '../lib/stats';
 import { timeAgo } from '../lib/format';
 
-const arN = (n: number) => n.toLocaleString('ar-SA');
 
 /** Settings → «ربط Apple Health» (D27): token, step goal, last sync, Shortcut guide. */
 export default function HealthCard({ settings, bundle, onSaved, toast }: {
