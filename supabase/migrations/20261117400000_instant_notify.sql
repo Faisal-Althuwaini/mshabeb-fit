@@ -67,16 +67,25 @@ set search_path = public
 as $$
 declare
   v_owner bigint;
+  v_row jsonb;
 begin
+  -- Read fields through jsonb: plpgsql would fail on NEW.<column> that this table doesn't have.
+  v_row := to_jsonb(new);
   if tg_table_name in ('feed_comments', 'feed_reactions') then
-    v_owner := new.owner_user_id;
+    v_owner := (v_row->>'owner_user_id')::bigint;
   else
-    v_owner := new.user_id;
+    v_owner := (v_row->>'user_id')::bigint;
+    if tg_table_name = 'flex_posts'
+       and not (coalesce((v_row->>'shared_with_watchers')::boolean, false) and v_row->>'notified_at' is null) then
+      return new;
+    end if;
     -- Posts only matter if someone watches.
     if not exists (select 1 from public.watchers where owner_user_id = v_owner) then return new; end if;
   end if;
-  if tg_table_name = 'flex_posts' and not (new.shared_with_watchers and new.notified_at is null) then return new; end if;
   perform public.queue_notify(v_owner);
+  return new;
+exception when others then
+  raise warning 'trg_queue_notify failed: %', sqlerrm; -- never block the user's write
   return new;
 end;
 $$;
