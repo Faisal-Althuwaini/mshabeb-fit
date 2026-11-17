@@ -66,7 +66,7 @@ The stats and coaching logic is written once in `shared/` and used by the bot, t
 
 1. **Supabase:** create a project, run `supabase/schema.sql`, then every file in `supabase/migrations/` in order.
 2. **Bot / jobs:** `cp .env.example .env` and fill in `BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, the VAPID keys (`npx web-push generate-vapid-keys`) and, optionally, `OPENROUTER_API_KEY`. Then `npm install` and `pm2 start src/index.js --name mshabib-bot`.
-3. **App:** `cp pwa/.env.example pwa/.env.local` with the public URL, anon key and VAPID public key. Then `cd pwa && npm install && npm run build && npx netlify deploy --prod --dir dist`. The Thmanyah font files are not in git; put them in `pwa/public/fonts/`.
+3. **App:** `cp pwa/.env.example pwa/.env.local` with the public URL, anon key and VAPID public key. Then `cd pwa && npm install && npm run build && npx netlify deploy --prod --dir dist`. The Thmanyah font files are not in git; put them in `pwa/public/fonts/thmanyah/`.
 4. **Edge functions:** `npm run deploy:chat`, `npm run deploy:health`, `npm run deploy:google`. Secrets on the Supabase project: `OPENROUTER_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 5. **Google Health (optional):** in Google Cloud enable the Google Health API, add the scopes `googlehealth.activity_and_fitness.readonly` and `googlehealth.sleep.readonly`, publish the consent screen to *In production* (in *Testing* the link expires after 7 days), and create a Web OAuth client with the redirect URI `https://<project-ref>.supabase.co/functions/v1/google-health`.
 
