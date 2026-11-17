@@ -1,100 +1,74 @@
-# Weight Tracker Bot
+# Mushabbab (مشبب)
 
-A Telegram bot that tracks your weight the way that actually reflects progress: by the week, not by the day.
+An Arabic fitness coach that judges progress by the **week, not the day**. It started as a Telegram weight bot and is now app-first: an installable web app (PWA) with an AI coach, a friend who keeps you honest, and steps, sleep and workouts that arrive on their own.
 
-## The problem
+Live at **[mushabbab.faisalalthuwaini.sa](https://mushabbab.faisalalthuwaini.sa)**.
 
-Body weight swings by a kilogram or more from one day to the next — water retention, sodium, hormones, when you last ate, even how much you slept. None of that is fat gain or loss, but if you step on the scale daily and watch the number bounce around, it feels like progress is random, or worse, like you're failing. That noise is exactly what makes people give up: they weigh in, see an increase that has nothing to do with their actual trend, and lose motivation.
+## The idea
 
-The fix isn't to stop weighing in — it's to stop judging progress from single data points. A weekly average smooths out the day-to-day noise and reveals the real trend underneath it. That's the whole premise of this bot: log your weight daily (it only takes a text message), and let it do the averaging and week-over-week comparison for you, so what you see is signal, not noise.
+Body weight swings by a kilo or more from one day to the next (water, salt, sleep, when you last ate). Judge yourself by one morning and progress looks random, and that is when people quit. Mushabbab averages your weigh-ins per week (Sunday to Saturday, Riyadh time) and compares weeks, so what you see is the real trend. Next to it sits one rule that keeps the habit alive: **don't miss twice**. On a bad day, the bare minimum («أقل شي») still counts.
 
 ## What it does
 
-- **Effortless logging** — send a bare number (`72.5`) or `/weight 72.5` in the chat; either logs today's weight
-- **Weekly averages, front and center** — `/progress` shows today's weight alongside this week's average and a 14-day trend chart, so a single day never overshadows the bigger picture
-- **Week-over-week comparison** — `/compare week` tells you whether your weekly average is actually moving, up or down, compared to last week; `/compare day` is there too, but the weekly view is the one that matters
-- **Daily reminders** — set a time with `/reminder 08:00`, and the bot nudges you if you haven't logged yet; consistent logging is what makes the weekly average meaningful in the first place
-- **Automatic weekly recap** — a summary comparing this week's average to last week's, delivered without you having to ask
-- **Motivation on demand** — `/motivate` for a random nudge when the day-to-day number is tempting you to read too much into it
-- **Coach basics** — Arabic digits accepted (`١١٢٫٤`); `/done` or «مشيت» for the minimum day, `/gym [anterior|posterior]` or «حديد» for lifting, `/pause 5` / `/resume`, `/report`, `/link 123456` to connect the PWA, and free text like `112.4 وحديد وأكلت برا` (needs `DEEPSEEK_API_KEY`)
+**Today**
+- Log your weight in one tap, in Arabic or Latin digits (`١١٢٫٤` or `112.4`).
+- Tick «أقل شي» (the minimum day) and «حديد» (lifting). Both can also tick themselves (see Health sync).
+- Steps meter against your goal, last night's sleep, and the week as dots. Forgot a day? Log any past day.
+
+**Progress**
+- Weekly averages, change against last week, a streak, and a «ladder» of the next weight milestones since you started.
+- Monthly summary image (before/after photos, weight change, measurements, streaks), ready for WhatsApp or posting to your friend.
+
+**Flex**
+- Progress photos (up to 4 per post, carousel), weight filled in from the latest weigh-in, and optional body measurements (waist, chest, arm and others).
+- Share each post with your friend, or keep it private.
+
+**Coach (AI)**
+- Chat with مشبب, who knows your numbers (weights, streaks, steps, sleep, workouts). Runs through OpenRouter on the cheapest capable model, with a fallback model. 30 messages a day.
+- Smart nudges (morning, evening, missed-day rescue), a weekly report and an early warning if the trend turns. Templates take over if the AI is down.
+
+**Friend (watcher)**
+- Invite a friend by code. They see your feed (meals, check-ins, shared photos, measurements), react, comment and get notifications. You see «👀 شافه» when they've seen something.
+- Rename or remove a watcher at any time.
+
+**Health sync**
+- **Google Health API** (Fitbit, plus Hevy via Apple Health): link once with Google. Steps, sleep and strength workouts sync every 20 minutes. Reaching the step goal ticks «أقل شي»; 20+ minutes of strength ticks «حديد». Duplicate sessions (Hevy + Fitbit auto-detect) are merged.
+- **Apple Health Shortcut** (fallback): a private token lets an iPhone Shortcut post workouts.
+
+**App**
+- Installable PWA, dark mode, RTL Arabic with the Thmanyah typeface, web push notifications, opens instantly from a device cache, works offline (writes queue until you're back online), and stays signed in.
+- The original Telegram bot still works for weight logging and reminders.
 
 ## How it's built
 
-| Layer | Choice | Why |
-|---|---|---|
-| Bot framework | [Telegraf](https://telegraf.js.org) | Mature, well-documented Telegram bot library for Node.js |
-| Database | [Supabase](https://supabase.com) | Managed Postgres with a simple JS client — no server to run for the DB itself |
-| Scheduling | [node-cron](https://www.npmjs.com/package/node-cron) | In-process cron for reminders and the weekly summary, no external scheduler needed |
-| Charts | [QuickChart](https://quickchart.io) | Renders the progress chart as an image URL — no chart library or canvas dependency |
-| Process management | [pm2](https://pm2.keymetrics.io) | Keeps the bot alive and auto-restarting on a VPS |
+| Part | Choice |
+|---|---|
+| App | React + TypeScript + Vite, `vite-plugin-pwa` (custom service worker for push), hosted on Netlify |
+| Data | Supabase Postgres (Mumbai) with row-level security; one RPC (`get_bundle`) loads a whole screen |
+| Auth | Supabase email + password; the Telegram account is linked with a one-time code |
+| Server logic | Supabase Edge Functions: `coach-chat`, `google-health`, `health-sync` |
+| Bot + jobs | Node.js, Telegraf, node-cron on a VPS under pm2 (nudges, weekly report, Google Health sync) |
+| AI | OpenRouter (`deepseek/deepseek-v4.1-flash`, fallback `openai/gpt-oss-120b`) |
+| Notifications | Web Push (VAPID) |
 
-The bot runs on long polling (no public URL or webhook required), which is why it deploys cleanly to a plain VPS process manager like pm2 instead of needing a web-facing host.
-
-## Setup
-
-### 1. Create your Telegram bot
-
-1. Open Telegram and message [@BotFather](https://t.me/BotFather).
-2. Send `/newbot` and follow the prompts.
-3. Copy the bot token it gives you (looks like `123456:ABC-DEF...`).
-
-### 2. Set up Supabase
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL Editor, run the contents of [`supabase/schema.sql`](supabase/schema.sql) to create the `users` and `weight_entries` tables, then every file in [`supabase/migrations/`](supabase/migrations/) in order.
-3. Go to **Settings → API** and copy:
-   - **Project URL** → `SUPABASE_URL`
-   - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
-
-   Keep the service role key secret — it belongs only in this bot's server-side environment, never in client code.
-
-### 3. Configure environment variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-- `BOT_TOKEN` — your Telegram bot token
-- `SUPABASE_URL` — your Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` — your Supabase service role key
-
-### 4. Install and run
-
-```bash
-npm install
-npm start
-```
-
-For production, keep it running with pm2 instead:
-
-```bash
-pm2 start src/index.js --name weight-tracker-bot
-pm2 save
-```
-
-## Good to know
-
-**Everything runs on Saudi Arabia time (UTC+3).** Days are Riyadh calendar days and weeks run Sunday–Saturday, so the Saturday-evening recap covers the full week. See [`DECISIONS.md`](DECISIONS.md).
-
-**Telegram's 24-hour rule.** Telegram only lets bots message users who've messaged the bot within the last 24 hours. If someone hasn't opened the chat in a day, a scheduled reminder or weekly summary simply won't be delivered — there's no way around this on Telegram's side, so users need to open the bot at least once a day for reminders to land.
+The stats and coaching logic is written once in `shared/` and used by the bot, the app and the edge functions (`scripts/sync-shared.sh` copies it; a test fails if the copies drift). Every design decision is logged in [`DECISIONS.md`](DECISIONS.md).
 
 ## Project structure
 
-- `src/index.js` — bot setup, command and button registration, HTTP fallback
-- `src/config.js` — environment variable loading and validation
-- `src/supabase.js` — Supabase client
-- `src/scheduler.js` — cron jobs for daily reminders and the weekly summary
-- `src/handlers/` — one handler per command (start, weight, progress, compare, motivate, reminder)
-- `src/services/weight.js` — weight and user data access
-- `src/services/chart.js` — builds the QuickChart progress chart URL
-- `src/messages.js` — motivational and trend message pools
-- `shared/stats.mjs` — the one stats implementation (weekly averages, streaks, ladder, digit parsing), shared with the PWA
-- `src/handlers/coach.js` — `/done`, `/gym`, `/pause`, `/resume`, `/report`, `/link`, free text
-- `src/services/coach.js`, `src/services/deepseek.js` — coaching data access and the DeepSeek client
-- `supabase/schema.sql` — base schema; `supabase/migrations/` — additive migrations (run after the base schema)
+- `pwa/` — the app (`src/screens/` Today, Progress, Coach, Feed, Flex, Settings; `src/lib/` data, stats, offline queue)
+- `src/` — bot and scheduled jobs (`coachTick.js` nudges, milestones, weekly report and Google sync; `coachAI.js`; `notifier.js`; `handlers/`)
+- `shared/` — `stats.mjs` and `coach.mjs`, the single source for weekly averages, streaks, the ladder and coach prompts
+- `supabase/schema.sql` + `supabase/migrations/` — the database, applied in order
+- `supabase/functions/` — edge functions (`_shared/` is generated from `shared/`)
 - `test/` — `npm test`
+
+## Setup
+
+1. **Supabase:** create a project, run `supabase/schema.sql`, then every file in `supabase/migrations/` in order.
+2. **Bot / jobs:** `cp .env.example .env` and fill in `BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, the VAPID keys (`npx web-push generate-vapid-keys`) and, optionally, `OPENROUTER_API_KEY`. Then `npm install` and `pm2 start src/index.js --name mshabib-bot`.
+3. **App:** `cp pwa/.env.example pwa/.env.local` with the public URL, anon key and VAPID public key. Then `cd pwa && npm install && npm run build && npx netlify deploy --prod --dir dist`. The Thmanyah font files are not in git; put them in `pwa/public/fonts/`.
+4. **Edge functions:** `npm run deploy:chat`, `npm run deploy:health`, `npm run deploy:google`. Secrets on the Supabase project: `OPENROUTER_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+5. **Google Health (optional):** in Google Cloud enable the Google Health API, add the scopes `googlehealth.activity_and_fitness.readonly` and `googlehealth.sleep.readonly`, publish the consent screen to *In production* (in *Testing* the link expires after 7 days), and create a Web OAuth client with the redirect URI `https://<project-ref>.supabase.co/functions/v1/google-health`.
 
 ## License
 
