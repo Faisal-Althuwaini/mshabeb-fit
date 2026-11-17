@@ -171,9 +171,14 @@ export default function Today({ subject, settings, bundle, today, onChanged, mut
               {steps >= goal && <span className="chip accent">✅ أقل شي</span>}
             </div>
             <div className="meter"><span style={{ width: `${pct}%` }} /></div>
-            <div className="row between small muted">
-              {check?.sleep_minutes != null ? <span>😴 نمت {S.toArabicDigits(Math.floor(check.sleep_minutes / 60), 0)} س {S.toArabicDigits(check.sleep_minutes % 60, 0)} د</span> : <span />}
-              {check?.strength_minutes ? <span>🏋️ {S.toArabicDigits(check.strength_minutes, 0)} د حديد</span> : null}
+            {check?.sleep_minutes != null && (
+              <div className="row between" style={{ marginTop: 12 }}>
+                <b>😴 {S.toArabicDigits(Math.floor(check.sleep_minutes / 60), 0)} س {S.toArabicDigits(check.sleep_minutes % 60, 0)} د <span className="muted small">نوم البارحة</span></b>
+                {check.sleep_minutes >= 420 && <span className="chip accent">نوم كافي</span>}
+              </div>
+            )}
+            <div className="row between small muted" style={{ marginTop: 8 }}>
+              {check?.strength_minutes ? <span>🏋️ {S.toArabicDigits(check.strength_minutes, 0)} د حديد</span> : <span />}
               {check?.health_synced_at && <span className="faint">مزامنة {timeAgo(check.health_synced_at)}</span>}
             </div>
           </div>
