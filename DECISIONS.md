@@ -210,3 +210,11 @@ It can be shared via the iOS share sheet (WhatsApp…), downloaded, or posted to
 3. Faisal sends `/coach 80 112` to the bot to turn the coach on for himself.
 
 The migration must go first: the new code writes `weight_entries.source` and reads `coach_settings`.
+
+## D28 · Google Health API for steps and sleep (2026-11-17)
+- The iPhone Shortcut kept sending 0 (Shortcuts' Health filters were unreliable), so steps and sleep now come straight from the **Google Health API** (the REST successor to the Fitbit Web API).
+- **Link:** Settings → «⌚ الخطوات والنوم» → «ربط Google Health». RPC `create_google_state()` → edge function `google-health?start=` → Google consent (scopes `googlehealth.activity_and_fitness.readonly` + `googlehealth.sleep.readonly`, offline) → callback stores the refresh token in `google_health_links` (column grants: clients can never read it) → first sync → back to `/settings?google=ok`.
+- **Sync:** the bot POSTs to `google-health` with the service key every 20 min (`src/coachTick.js`); the app also syncs once on open if the last sync is older than 5 min. Today and yesterday: steps via `steps/dataPoints:dailyRollUp`, sleep = `summary.minutesAsleep` of sessions whose civil end time falls on that day. Steps ≥ goal ticks «أقل شي». Never un-ticks.
+- **Hevy** doesn't write to Google Health, so the Shortcut stays for workouts only; when Google is linked, `health-sync` ignores Shortcut steps and sleep.
+- **Google Cloud (Faisal):** OAuth client (Web), redirect URI `https://fdkieikygfcvqwbrtzdi.supabase.co/functions/v1/google-health`; secrets `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` set on the Supabase project. Publish the consent screen to **In production** (unverified is fine for personal use); in "Testing" the refresh token dies after 7 days.
+- Migration `20261117100000_google_health.sql`. Deploy: `npm run deploy:google`.

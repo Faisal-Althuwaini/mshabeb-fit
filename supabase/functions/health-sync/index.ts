@@ -17,7 +17,9 @@ async function sha256(s: string) {
 /** Shortcuts send numbers as numbers, strings ("5,230", "٥٢٣٠") or empty — accept all. */
 function num(v: unknown): number | null {
   if (v == null || v === '') return null;
-  const n = Number(S.normalizeDigits(String(v)).replace(/[^\d.]/g, ''));
+  const cleaned = S.normalizeDigits(String(v)).replace(/[^\d.]/g, '');
+  if (cleaned === '') return null; // text that isn't a number (e.g. a broken Shortcut variable) ≠ 0
+  const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -49,7 +51,9 @@ Deno.serve(async (req) => {
     day = body.date;
   }
 
-  const steps = num(body.steps);
+  // When Google Health is linked (D28) it owns steps + sleep; the Shortcut only adds Hevy workouts.
+  const { data: g } = await db.from('google_health_links').select('user_id').eq('user_id', userId).maybeSingle();
+  const steps = g ? null : num(body.steps);
   const strength = toMinutes(num(body.strength_minutes ?? body.strength ?? body.workout_minutes), 600);
   // Simpler signal for Shortcuts that can't read workout durations: how many Hevy samples
   // (e.g. its Active Energy entries) exist today, or an explicit lifted flag.
@@ -60,7 +64,7 @@ Deno.serve(async (req) => {
   const sleepHours = num(body.sleep_hours);
   // Shortcuts may sum sleep durations as hours (7.2), minutes (432) or seconds (25920):
   // ≤ 24 can only be hours, > 1200 can only be seconds.
-  let sleep = sleepHours != null ? Math.round(sleepHours * 60)
+  let sleep = g ? null : sleepHours != null ? Math.round(sleepHours * 60)
     : sleepRaw == null ? null
     : sleepRaw <= 24 ? Math.round(sleepRaw * 60)
     : sleepRaw > 1200 ? Math.round(sleepRaw / 60)

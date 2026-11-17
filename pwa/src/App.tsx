@@ -113,6 +113,32 @@ export default function App() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Google Health (D28): pull fresh steps/sleep when the owner opens the app (bot also syncs every 20 min).
+  const googleSynced = useRef(false);
+  useEffect(() => {
+    if (DEMO || googleSynced.current || !subject?.isOwner || !bundle?.google?.connected) return;
+    const last = bundle.google.last_sync_at ? Date.parse(bundle.google.last_sync_at) : 0;
+    googleSynced.current = true;
+    if (Date.now() - last < 5 * 60_000) return;
+    data.syncGoogleHealth().then((r) => { if (r.ok) refresh(); });
+  }, [bundle, subject?.isOwner, refresh]);
+
+  // Back from Google's consent screen: /settings?google=ok|denied|…
+  useEffect(() => {
+    const g = new URLSearchParams(location.search).get('google');
+    if (!g) return;
+    const msg: Record<string, string> = {
+      ok: 'تم ✅ انربط Google Health',
+      linked_sync_failed: 'انربط ✅ بس أول مزامنة ما زبطت، شف التفاصيل تحت',
+      denied: 'ما وافقت على الربط',
+      expired: 'انتهت مهلة الربط، جرّب مرة ثانية',
+      no_refresh: 'Google ما عطانا صلاحية دائمة، جرّب الربط مرة ثانية',
+      not_configured: 'ربط Google Health مو مجهّز للحين',
+    };
+    toast.show(msg[g] ?? 'ما زبط الربط، جرّب مرة ثانية');
+    history.replaceState(null, '', location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Instant UI: screens change the bundle locally right away (mutate), the server write runs in
   // the background, then one debounced refresh reconciles with the database (refreshSoon).
   const mutate = useCallback((fn: (b: Bundle) => Bundle) => setBundle((b) => (b ? fn(b) : b)), []);

@@ -44,6 +44,7 @@ export type Bundle = {
   watchers: Watcher[];
   flexPosts: FlexPost[];
   health?: { connected: boolean; last_used_at: string | null; created_at: string } | null;
+  google?: { connected: boolean; created_at: string; last_sync_at: string | null; last_error: string | null } | null;
   measurements: Measurement[];
 };
 
@@ -65,6 +66,7 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
       watchers: raw.watchers as Watcher[],
       flexPosts: ((raw.flex_posts || []) as FlexPost[]).map((p) => ({ ...p, weight: num(p.weight) })),
       health: (raw.health as unknown as Bundle['health']) ?? null,
+      google: (raw.google as unknown as Bundle['google']) ?? null,
       measurements: ((raw.measurements || []) as Measurement[]).map((m) => {
         const out = { ...m } as Measurement;
         for (const k of ['waist_cm', 'chest_cm', 'hips_cm', 'arm_cm', 'thigh_cm', 'neck_cm', 'body_fat_pct'] as MeasureKey[]) out[k] = num(m[k]);
@@ -223,6 +225,19 @@ export const createLinkCode = async () => must(await supabase.rpc('create_link_c
 export const createHealthToken = async () => must(await supabase.rpc('create_health_token')) as string;
 export const revokeHealthToken = async () => { must(await supabase.rpc('revoke_health_token')); };
 export const HEALTH_SYNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-sync`;
+/** Google Health API (D28): start OAuth in this window; Google sends the user back to /settings?google=… */
+export async function connectGoogleHealth() {
+  const state = must(await supabase.rpc('create_google_state')) as string;
+  location.href = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/google-health?start=${state}`;
+}
+export const disconnectGoogleHealth = async () => { must(await supabase.rpc('disconnect_google_health')); };
+/** Pull today's steps + sleep now (the bot also does it every 20 min). */
+export async function syncGoogleHealth(): Promise<{ ok: boolean; error?: string }> {
+  if (isDemo()) return { ok: true };
+  const { data: d, error } = await supabase.functions.invoke('google-health', { body: {} });
+  if (error) return { ok: false, error: error.message };
+  return d as { ok: boolean; error?: string };
+}
 export const createWatchInvite = async () => must(await supabase.rpc('create_watch_invite')) as string;
 export const acceptWatchInvite = async (code: string, name: string) =>
   must(await supabase.rpc('accept_watch_invite', { p_code: code, p_display_name: name })) as 'ok' | 'invalid' | 'expired' | 'self';

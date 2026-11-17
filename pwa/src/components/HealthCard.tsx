@@ -6,7 +6,7 @@ import * as S from '../lib/stats';
 import { timeAgo } from '../lib/format';
 
 
-/** Settings → «ربط Apple Health» (D27): token, step goal, last sync, Shortcut guide. */
+/** Settings → «الخطوات والنوم»: Google Health link (D28), step goal, and the Apple Health Shortcut for Hevy (D27). */
 export default function HealthCard({ settings, bundle, onSaved, toast }: {
   settings: Settings; bundle: Bundle; onSaved: () => Promise<void>; toast: (m: string) => void;
 }) {
@@ -14,6 +14,16 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
   const [goal, setGoal] = useState(String(settings.steps_goal ?? 6000));
   const [busy, setBusy] = useState(false);
   const connected = !!bundle.health?.connected;
+  const google = bundle.google;
+  const [syncing, setSyncing] = useState(false);
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      const r = await data.syncGoogleHealth();
+      await onSaved();
+      toast(r.ok ? 'تم ✅ تحدّثت الخطوات والنوم' : `ما زبطت المزامنة: ${r.error ?? ''}`);
+    } finally { setSyncing(false); }
+  };
   const last = bundle.health?.last_used_at;
 
   const copy = async (s: string, what: string) => {
@@ -32,11 +42,39 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
 
   return (
     <div className="card stack">
-      <h2 style={{ margin: 0 }}>🍎 ربط Apple Health</h2>
+      <h2 style={{ margin: 0 }}>⌚ الخطوات والنوم</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        الخطوات والنوم (من Fitbit عن طريق Google Health) وتمارين الحديد (من Hevy) توصل مشبب تلقائياً عن طريق اختصار بالآيفون.
-        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅»، وإذا سجّلت تمرين في Hevy اليوم ينعلّم «حديد ✅».
+        اربط Google Health (ساعة Fitbit) وتوصل خطواتك ونومك لمشبب تلقائياً كل ٢٠ دقيقة.
+        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅» لحاله.
       </p>
+      <div className="row between">
+        <span className="small">
+          {!google ? '❌ Google Health مو مربوط'
+            : google.last_error ? `⚠️ آخر مزامنة ما زبطت${google.last_sync_at ? ` (آخر نجاح ${timeAgo(google.last_sync_at)})` : ''}`
+            : google.last_sync_at ? `✅ آخر مزامنة ${timeAgo(google.last_sync_at)}` : '⏳ مربوط، بانتظار أول مزامنة'}
+        </span>
+        {google
+          ? <button className="btn ghost" style={{ minHeight: 38 }} onClick={syncNow} disabled={syncing}>{syncing ? '…' : 'مزامنة الحين'}</button>
+          : <button className="btn accent" style={{ minHeight: 38 }} onClick={() => data.connectGoogleHealth().catch((e) => toast((e as Error).message))}>ربط Google Health</button>}
+      </div>
+      {google?.last_error && (
+        <p className="small faint" dir="ltr" style={{ margin: 0, wordBreak: 'break-word' }}>{google.last_error}</p>
+      )}
+      {google?.last_error?.includes('invalid_grant') && (
+        <button className="btn accent" onClick={() => data.connectGoogleHealth().catch((e) => toast((e as Error).message))}>أعد الربط</button>
+      )}
+      <label className="field">
+        <span>هدف الخطوات اليومي</span>
+        <div className="row">
+          <input className="input" inputMode="numeric" dir="ltr" value={goal} onChange={(e) => setGoal(e.target.value)} />
+          <button className="btn ghost" onClick={saveGoal}>حفظ</button>
+        </div>
+      </label>
+      {google && <button className="link-btn faint small" onClick={async () => { if (confirm('توقف ربط Google Health؟')) { await data.disconnectGoogleHealth(); await onSaved(); } }}>إلغاء ربط Google Health</button>}
+      <details className="box">
+        <summary>🍎 اختصار Apple Health (لتمارين Hevy)</summary>
+        <div className="stack" style={{ marginTop: 10 }}>
+        <p className="small muted" style={{ margin: 0 }}>Hevy ما يكتب في Google Health، فتمارين الحديد توصل عن طريق اختصار بالآيفون: إذا سجّلت تمرين اليوم ينعلّم «حديد ✅».</p>
       <div className="row between">
         <span className="small">{connected ? (last ? `✅ آخر مزامنة ${timeAgo(last)}` : '⏳ مربوط، بانتظار أول مزامنة') : '❌ مو مربوط'}</span>
         <button className="btn ghost" style={{ minHeight: 38 }} onClick={make} disabled={busy}>{connected ? 'مفتاح جديد' : 'اعطني المفتاح'}</button>
@@ -51,35 +89,17 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
           </div>
         </div>
       )}
-      <label className="field">
-        <span>هدف الخطوات اليومي</span>
-        <div className="row">
-          <input className="input" inputMode="numeric" dir="ltr" value={goal} onChange={(e) => setGoal(e.target.value)} />
-          <button className="btn ghost" onClick={saveGoal}>حفظ</button>
-        </div>
-      </label>
-      <details className="box">
-        <summary>📱 طريقة عمل الاختصار (٥ دقايق)</summary>
-        <ol className="small" style={{ paddingInlineStart: 20, lineHeight: 1.9 }}>
-          <li>تأكد إن <b>Google Health</b> و <b>Hevy</b> يكتبون في Apple Health (Health ← صورتك ← Apps).</li>
-          <li>افتح تطبيق <b>Shortcuts</b> ← <b>+</b> اختصار جديد، سمّه «مشبب».</li>
-          <li><b>الخطوات:</b> أضف <b>Find Health Samples</b> ← Type: <b>Steps</b> ← Start Date <b>is today</b>. (إذا فيه فلتر <b>Source</b> اختر Google Health عشان ما تنحسب خطوات الجوال مرتين.) بعدها <b>Calculate Statistics</b> ← <b>Sum</b>.</li>
-          <li><b>الحديد (Hevy):</b> أضف <b>Find Health Samples</b> ← Type: <b>Active Energy</b> ← Start Date <b>is today</b> ← فلتر <b>Source is Hevy</b>. بعدها <b>Count</b>. إذا العدد أكثر من ٠ يعني تمرنت اليوم.</li>
-          <li><b>النوم:</b> أضف <b>Find Health Samples</b> ← Type: <b>Sleep Analysis</b> ← Start Date <b>is in the last 1 day</b> ← Value <b>is not</b> In Bed / Awake. بعدها <b>Get Details</b> ← <b>Duration</b> ← <b>Sum</b>.</li>
-          <li>أضف <b>Get Contents of URL</b>:
-            <ul>
-              <li>URL: الرابط اللي نسخته</li>
-              <li>Method: <b>POST</b></li>
-              <li>Headers: <code dir="ltr">Authorization</code> = <code dir="ltr">Bearer مفتاحك</code></li>
-              <li>Request Body: <b>JSON</b> بثلاث خانات (Number): <code dir="ltr">steps</code> = مجموع الخطوات، <code dir="ltr">workouts</code> = عدد Hevy، <code dir="ltr">sleep_minutes</code> = مجموع النوم</li>
-            </ul>
-          </li>
-          <li>شغّله مرة، ولازم تشوف «آخر مزامنة الحين» هنا ✅</li>
-          <li><b>Automation</b> ← <b>Time of Day</b> ← ١ الظهر، ٦ المغرب، ١٠ بالليل ← <b>Run Immediately</b> ← اختصار «مشبب».</li>
+        <p className="small" style={{ margin: 0 }}><b>📱 طريقة عمل الاختصار (دقيقتين)</b></p>
+        <ol className="small" style={{ paddingInlineStart: 20, lineHeight: 1.9, margin: 0 }}>
+          <li>تأكد إن <b>Hevy</b> يكتب في Apple Health (Health ← صورتك ← Apps ← Hevy).</li>
+          <li><b>Shortcuts</b> ← <b>+</b> ← <b>Find Health Samples</b> ← Type: <b>Active Energy</b> ← Start Date <b>is today</b> ← فلتر <b>Source is Hevy</b>. بعدها <b>Count</b>.</li>
+          <li><b>Get Contents of URL</b>: الرابط اللي نسخته، Method <b>POST</b>، Header <code dir="ltr">Authorization</code> = <code dir="ltr">Bearer مفتاحك</code>، وBody <b>JSON</b> فيه خانة وحدة (Number): <code dir="ltr">workouts</code> = Count.</li>
+          <li><b>Automation</b> ← <b>Time of Day</b> ← ٨ بالليل و١١ بالليل ← <b>Run Immediately</b>.</li>
         </ol>
         <p className="small faint" style={{ margin: 0 }}>الأرقام بالعربي أو بالدقائق أو الثواني كلها تنقبل. والاختصار يقدر يرسل لأمس بإضافة <code dir="ltr">date</code>.</p>
-      </details>
       {connected && <button className="link-btn faint small" onClick={async () => { if (confirm('توقف الربط؟')) { await data.revokeHealthToken(); await onSaved(); } }}>إلغاء الربط</button>}
+        </div>
+      </details>
     </div>
   );
 }

@@ -215,8 +215,22 @@ async function runTick(bot, now = new Date()) {
   return sent;
 }
 
+async function syncGoogleHealth() {
+  const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/google-health`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+    body: '{}',
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const body = await res.json();
+  for (const r of body.results || []) if (r.error) console.error('google health user', r.user_id, r.error);
+}
+
 function startCoachTick(cron, bot) {
   cron.schedule('*/5 * * * *', () => runTick(bot).catch((e) => console.error('coach tick:', e.message)));
+  // Google Health (D28): pull steps + sleep for linked users. No-op when nobody is linked.
+  cron.schedule('*/20 * * * *', () => syncGoogleHealth().catch((e) => console.error('google health:', e.message)));
   console.log(`Coach tick started (every 5 min${process.env.DRY_RUN === '1' ? ', DRY_RUN' : ''}).`);
 }
 
