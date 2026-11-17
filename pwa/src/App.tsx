@@ -8,6 +8,8 @@ import { unreadCount } from './lib/feed';
 import type { Settings, Subject, WhoAmI } from './lib/types';
 import * as S from './lib/stats';
 import Auth from './screens/Auth';
+import InstallGate from './components/InstallGate';
+import { isStandalone, skipped } from './lib/install';
 import Setup from './screens/Setup';
 import Today from './screens/Today';
 import Progress from './screens/Progress';
@@ -40,6 +42,9 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [seenAt, setSeenAt] = useState<string | null>(readSeen());
   const toast = useToast();
+  // Install-first (D30): new visitors install the PWA before signing up. Dev: add ?gate to test it.
+  const [needsInstall, setNeedsInstall] = useState(() =>
+    import.meta.env.DEV ? new URLSearchParams(location.search).has('gate') : !isStandalone() && !skipped());
 
   // ── Auth ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,7 +183,7 @@ export default function App() {
 
   // ── Render ──────────────────────────────────────────────────────────────
   if (session === undefined) return <div className="spinner" />;
-  if (!session) return <Auth />;
+  if (!session) return needsInstall ? <InstallGate onSkip={() => setNeedsInstall(false)} /> : <Auth />;
   if (!who) {
     return (
       <div className="auth center">

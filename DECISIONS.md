@@ -224,3 +224,8 @@ The migration must go first: the new code writes `weight_entries.source` and rea
 - Every table is keyed by `users.telegram_user_id`, so app-only users get a **negative** id from `app_user_seq` (real Telegram ids are positive). No schema change elsewhere.
 - The bot's `sendMessage`/`sendPhoto` reject negative ids up front (`src/index.js`); every job already catches a failed send and still delivers by Web Push, so nudges, the weekly report and milestones reach app-only users as notifications.
 - Linking the Telegram bot stays available under the form for existing bot users. Settings hides the Telegram card for app-only users.
+
+## D30 · Install first, then sign up (2026-11-17)
+- A visitor who isn't signed in and isn't running from the home screen sees an install guide instead of sign-up (`components/InstallGate.tsx`, `lib/install.ts`). Reason: iOS keeps a home-screen app's storage separate from Safari (signing up in Safari means signing in again) and Web Push only works in the installed app.
+- Steps per platform: iPhone Safari (Share → Add to Home Screen), other iOS browsers, in-app browsers (Instagram, TikTok…: open in the browser), Android (Chrome's install prompt when available, else the ⋮ menu), desktop (open on your phone).
+- Android and desktop get a small «أكمل من المتصفح» escape (remembered on the device) in case a browser can't install; iPhone has none. Signed-in browser sessions are never gated. In dev, add `?gate` to see it.
