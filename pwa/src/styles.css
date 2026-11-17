@@ -304,6 +304,8 @@ label.field > span { display: block; font-size: 14px; color: var(--ink-2); margi
 details.box { border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
 details.box summary { cursor: pointer; font-weight: 700; list-style: none; }
 details.box summary::-webkit-details-marker { display: none; }
+.health-card .meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 10px 0 8px; }
+.health-card .meter span { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s; }
 .flex-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .flex-item { position: relative; border-radius: 14px; overflow: hidden; background: var(--surface); border: 2px solid transparent; }
 .flex-item.sel { border-color: var(--accent); }

@@ -20,7 +20,7 @@ export function buildDays(b: Bundle, limitDays = 30): DayCard[] {
     return days.get(d)!;
   };
   for (const e of b.entries) card(e.date).weight = e.weight;
-  for (const c of b.checks) if (c.minimum_done || c.lifted) card(c.day).check = c;
+  for (const c of b.checks) if (c.minimum_done || c.lifted || (c.steps ?? 0) > 0) card(c.day).check = c;
   for (const m of b.meals) card(m.local_date).meals.push(m);
   const photosByPost = new Map<number, FlexPhoto[]>();
   for (const ph of b.flex) if (ph.post_id != null) (photosByPost.get(ph.post_id) || photosByPost.set(ph.post_id, []).get(ph.post_id)!).push(ph);

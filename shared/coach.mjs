@@ -14,6 +14,7 @@ Rules:
 - Be specific and use his numbers. One focus at a time. No long lists.
 - His known derailers: chocolate, eating out, low movement. Baseline: 2 lifting days/week (anterior/posterior), cardio, the minimum action.
 - What motivates him: visible change (flex photos) and friends noticing (a friend watches his progress in the app).
+- Steps, sleep and strength-workout minutes come from his Fitbit/Hevy via Apple Health when available. Short sleep raises cravings; mention it kindly when relevant. Never turn steps into calorie math.
 - Safety: no calorie targets, no meal plans, no fasting or extreme restriction, no supplements or medication advice, no diagnoses. If the weekly average drops faster than ~1.5 kg/week for 2+ weeks, tell him to slow down and eat enough. If he mentions pain, dizziness or other health concerns, tell him to see a doctor. Redirect crash-diet requests to sustainable habits.
 - Don't invent data. If something is missing, say so.`;
 
@@ -21,9 +22,17 @@ Rules:
 export function buildContext({ entries, checks, settings, today, recentCoachMessages = [], name = null }) {
   const snap = S.buildSnapshot({ entries, checks, settings, today });
   const byDay = new Map();
-  for (let i = 13; i >= 0; i--) byDay.set(S.addDays(today, -i), { day: S.addDays(today, -i), weight: null, minimum: false, lifted: false });
+  for (let i = 13; i >= 0; i--) byDay.set(S.addDays(today, -i), { day: S.addDays(today, -i), weight: null, minimum: false, lifted: false, steps: null, sleep_hours: null, strength_minutes: null });
   for (const e of entries) if (byDay.has(e.date)) byDay.get(e.date).weight = e.weight;
-  for (const c of checks) if (byDay.has(c.day)) Object.assign(byDay.get(c.day), { minimum: !!c.minimum_done, lifted: !!c.lifted });
+  for (const c of checks) {
+    if (!byDay.has(c.day)) continue;
+    Object.assign(byDay.get(c.day), {
+      minimum: !!c.minimum_done, lifted: !!c.lifted,
+      steps: c.steps ?? null,
+      sleep_hours: c.sleep_minutes != null ? Math.round((c.sleep_minutes / 60) * 10) / 10 : null,
+      strength_minutes: c.strength_minutes ?? null,
+    });
+  }
   return {
     today,
     name,
@@ -31,6 +40,7 @@ export function buildContext({ entries, checks, settings, today, recentCoachMess
       start: Number(settings.start_weight), goal: Number(settings.goal_weight),
       target_per_4w: Number(settings.target_loss_per_4w ?? 3),
       minimum_action: settings.minimum_action, lifting_required: settings.lifting_days_required ?? 2,
+      steps_goal: settings.steps_goal ?? null,
     },
     last_14_days: [...byDay.values()],
     weekly: snap.weekly.slice(-8).map((w) => ({

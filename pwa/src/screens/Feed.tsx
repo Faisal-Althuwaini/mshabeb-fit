@@ -63,6 +63,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
             {d.check && (
               <div className="pills">
                 {d.check.minimum_done && <span className="pill m">🚶 مشى</span>}
+                {d.check.steps != null && d.check.steps > 0 && <span className="pill">👣 {d.check.steps.toLocaleString('ar-SA')}</span>}
                 {d.check.lifted && <span className="pill l">🏋️ حديد{d.check.workout_label === 'anterior' ? ' · أمامي' : d.check.workout_label === 'posterior' ? ' · خلفي' : ''}</span>}
               </div>
             )}

@@ -85,7 +85,7 @@ async function getAllEntries(userId) {
 async function getAllChecks(userId) {
   const { data, error } = await getSupabase()
     .from('daily_checks')
-    .select('day, minimum_done, lifted, workout_label, ate_out')
+    .select('day, minimum_done, lifted, workout_label, ate_out, steps, sleep_minutes, strength_minutes')
     .eq('user_id', userId)
     .order('day', { ascending: true });
   if (error) throw error;

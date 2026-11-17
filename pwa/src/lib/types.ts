@@ -1,5 +1,8 @@
 export type Entry = { date: string; weight: number };
-export type Check = { day: string; minimum_done: boolean; lifted: boolean; workout_label: string | null };
+export type Check = {
+  day: string; minimum_done: boolean; lifted: boolean; workout_label: string | null;
+  steps?: number | null; strength_minutes?: number | null; sleep_minutes?: number | null; health_synced_at?: string | null;
+};
 
 export type Settings = {
   user_id: number;
@@ -21,6 +24,8 @@ export type Settings = {
   paused_until: string | null;
   coach_started_on: string | null;
   display_name: string | null;
+  steps_goal?: number;
+  strength_min_minutes?: number;
 };
 
 export type WatchedOwner = {

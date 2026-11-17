@@ -159,6 +159,20 @@ It can be shared via the iOS share sheet (WhatsApp…), downloaded, or posted to
 - DeepSeek V4.1 Flash and gpt-oss-120b both **reason before answering**: with `max_tokens: 400`, reasoning (≈140–190+ tokens on a short prompt, more with the full context) left too little room. Replies were cut off («لكن بالأمانة.») or came back empty, which triggered the fallback text. Now the chat and the bot use `max_tokens` ≥ 1200–1500 plus `reasoning: { effort: 'low', exclude: true }`. A reply with `finish_reason: 'length'` is trimmed at its last complete sentence, and empty replies are logged with usage. Bot LLM timeout raised from 8 s to 15 s.
 - **Order:** a user message and its reply are inserted together, so they share `created_at`. The app and the function now order by `created_at`, then `id`, so the user row (inserted first) always comes before the reply.
 
+### D27. Apple Health sync via an iPhone Shortcut (2026-11-17)
+**Faisal:** his Fitbit Air syncs to Google Health, which writes to Apple Health (Bevel reads it too), and Hevy writes his workouts to Apple Health. He doesn't have Hevy Pro and doesn't need anterior/posterior auto-labels. Weight stays manual.
+- The direct Fitbit/Google route is closed: the legacy Fitbit Web API was turned off on 2 Nov 2026, and the Google Health API uses restricted scopes and wasn't onboarding new projects.
+- **Migration `20261117000000`:** `daily_checks.steps / strength_minutes / sleep_minutes / health_synced_at` (column grant extended); `coach_settings.steps_goal` (default 6000) and `strength_min_minutes` (default 20); `health_tokens` (one per user, SHA-256 only; RPCs `create_health_token()` returns `mh_…` once, plus `revoke_health_token()`); `get_bundle` returns the health fields and `health` status.
+- **Edge function `health-sync`** (`npm run deploy:health`, `--no-verify-jwt`; auth = `Authorization: Bearer mh_…`):
+  - accepts `steps`, `strength_minutes`, and `sleep_minutes` or `sleep_hours`; Arabic digits, commas, and minutes or seconds all work;
+  - accepts `date` = today or yesterday only;
+  - reaching the step goal ticks `minimum_done`, and a strength workout ≥ `strength_min_minutes` ticks `lifted`;
+  - **never un-ticks** manual marks.
+  - Tested end to end with a temporary token, then the test data and token were removed.
+- **App:** a steps/sleep card on «اليوم» (progress bar, last sync), a steps pill in the feed, and Settings → «🍎 ربط Apple Health» (key shown once with copy buttons, step goal, last sync, step-by-step Shortcut guide, revoke).
+- **Coach:** context `last_14_days` includes `steps`, `sleep_hours` and `strength_minutes`; the prompt mentions sleep and cravings, and never turns steps into calorie math.
+- **Caveat:** Apple Health may hold steps from both the iPhone and the Fitbit. The guide says to filter Source = Google Health if Shortcuts offers it, so steps aren't counted twice.
+
 ## Live system check (2026-11-12)
 - **Supabase:** project `Fitness-telegram` (`msfxhmswhsfrfurkfjwy`). The live tables match `supabase/schema.sql` exactly; no extra tables or RPCs.
 - **Telegram:** `@moshabeb_bot`, no webhook set (long polling), no pending updates, and a weigh-in was logged today, so the deployed bot is running.

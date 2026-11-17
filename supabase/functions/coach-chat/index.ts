@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
   const [w, c, hist, recent] = await Promise.all([
     db.from('weight_entries').select('weight, recorded_at').eq('user_id', userId).order('recorded_at'),
-    db.from('daily_checks').select('day, minimum_done, lifted, workout_label').eq('user_id', userId).order('day'),
+    db.from('daily_checks').select('day, minimum_done, lifted, workout_label, steps, sleep_minutes, strength_minutes').eq('user_id', userId).order('day'),
     db.from('coach_messages').select('kind, content').eq('user_id', userId).in('kind', ['chat_user', 'chat_coach'])
       .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(10),
     db.from('coach_messages').select('content').eq('user_id', userId).not('kind', 'in', '(chat_user,chat_coach)')

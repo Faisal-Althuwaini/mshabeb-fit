@@ -43,6 +43,7 @@ export type Bundle = {
   views: FeedView[];
   watchers: Watcher[];
   flexPosts: FlexPost[];
+  health?: { connected: boolean; last_used_at: string | null; created_at: string } | null;
   measurements: Measurement[];
 };
 
@@ -63,6 +64,7 @@ export async function loadBundle(ownerId: number): Promise<Bundle> {
       views: raw.views as FeedView[],
       watchers: raw.watchers as Watcher[],
       flexPosts: ((raw.flex_posts || []) as FlexPost[]).map((p) => ({ ...p, weight: num(p.weight) })),
+      health: (raw.health as unknown as Bundle['health']) ?? null,
       measurements: ((raw.measurements || []) as Measurement[]).map((m) => {
         const out = { ...m } as Measurement;
         for (const k of ['waist_cm', 'chest_cm', 'hips_cm', 'arm_cm', 'thigh_cm', 'neck_cm', 'body_fat_pct'] as MeasureKey[]) out[k] = num(m[k]);
@@ -217,6 +219,10 @@ export async function deleteComment(id: number) {
 // ── Linking & watchers ────────────────────────────────────────────────────
 
 export const createLinkCode = async () => must(await supabase.rpc('create_link_code')) as string;
+/** Apple Health sync token (D27). Returned once; only its hash is stored. */
+export const createHealthToken = async () => must(await supabase.rpc('create_health_token')) as string;
+export const revokeHealthToken = async () => { must(await supabase.rpc('revoke_health_token')); };
+export const HEALTH_SYNC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-sync`;
 export const createWatchInvite = async () => must(await supabase.rpc('create_watch_invite')) as string;
 export const acceptWatchInvite = async (code: string, name: string) =>
   must(await supabase.rpc('accept_watch_invite', { p_code: code, p_display_name: name })) as 'ok' | 'invalid' | 'expired' | 'self';

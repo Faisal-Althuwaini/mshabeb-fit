@@ -102,3 +102,16 @@ test('tick sends the weekly report on Saturday 21:00 once, plus a trend alert wh
   const fri = await runTick(bot, new Date('2026-11-13T18:05:00Z')); // Friday: not the report day
   assert.ok(!fri.some((o) => o.kind === 'weekly_report'));
 });
+
+test('coach context carries steps, sleep hours and strength minutes (D27)', () => {
+  const ctx = C.buildContext({
+    entries: [], settings: { start_weight: 112, goal_weight: 90, ladder_step: 2, week_start_dow: 0, steps_goal: 6000, minimum_action: 'مشي ٣٠ دقيقة' },
+    checks: [{ day: '2026-11-17', minimum_done: true, lifted: true, steps: 8123, sleep_minutes: 412, strength_minutes: 48 }],
+    today: '2026-11-17',
+  });
+  const d = ctx.last_14_days.find((x) => x.day === '2026-11-17');
+  assert.equal(d.steps, 8123);
+  assert.equal(d.sleep_hours, 6.9);
+  assert.equal(d.strength_minutes, 48);
+  assert.equal(ctx.settings.steps_goal, 6000);
+});

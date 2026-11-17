@@ -4,7 +4,7 @@ import * as data from '../lib/data';
 import type { Bundle, Mutate } from '../lib/data';
 import type { Check } from '../lib/types';
 import type { Settings, Subject } from '../lib/types';
-import { ar, daysAr } from '../lib/format';
+import { ar, daysAr, timeAgo } from '../lib/format';
 import WeekDots from '../components/WeekDots';
 import DayEditor from '../components/DayEditor';
 import { pendingCount } from '../lib/offline';
@@ -159,6 +159,26 @@ export default function Today({ subject, settings, bundle, today, onChanged, mut
           )}
         </div>
       </div>
+
+      {(check?.steps != null || check?.sleep_minutes != null || bundle.health?.connected) && (() => {
+        const steps = check?.steps ?? 0;
+        const goal = settings.steps_goal ?? 6000;
+        const pct = Math.min(100, Math.round((steps / goal) * 100));
+        return (
+          <div className="card health-card">
+            <div className="row between">
+              <b>👣 {steps.toLocaleString('ar-SA')} <span className="muted small">/ {goal.toLocaleString('ar-SA')} خطوة</span></b>
+              {steps >= goal && <span className="chip accent">✅ أقل شي</span>}
+            </div>
+            <div className="meter"><span style={{ width: `${pct}%` }} /></div>
+            <div className="row between small muted">
+              {check?.sleep_minutes != null ? <span>😴 نمت {S.toArabicDigits(Math.floor(check.sleep_minutes / 60), 0)} س {S.toArabicDigits(check.sleep_minutes % 60, 0)} د</span> : <span />}
+              {check?.strength_minutes ? <span>🏋️ {S.toArabicDigits(check.strength_minutes, 0)} د حديد</span> : null}
+              {check?.health_synced_at && <span className="faint">مزامنة {timeAgo(check.health_synced_at)}</span>}
+            </div>
+          </div>
+        );
+      })()}
 
       <WeekDots bundle={bundle} today={today} weekStartDow={settings.week_start_dow} liftingRequired={settings.lifting_days_required} onPickDay={setEditDay} />
       <button className="btn ghost block" style={{ marginBottom: 12 }} onClick={() => setEditDay(S.addDays(today, -1))}>📅 نسيت تسجل يوم؟</button>

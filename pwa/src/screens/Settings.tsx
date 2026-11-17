@@ -6,6 +6,7 @@ import type { Bundle } from '../lib/data';
 import * as S from '../lib/stats';
 import type { Settings, Subject, Watcher, WhoAmI } from '../lib/types';
 import PushCard from '../components/PushCard';
+import HealthCard from '../components/HealthCard';
 import { getTheme, setTheme, type Theme } from '../lib/theme';
 
 const DOW = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -31,6 +32,7 @@ export default function SettingsScreen({ subject, settings, bundle, me, who, onS
       <Appearance />
       {subject.isOwner && settings ? (
         <>
+          <HealthCard settings={settings} bundle={bundle} onSaved={onSaved} toast={toast} />
           <CoachForm settings={settings} onSaved={onSaved} toast={toast} />
           <Watchers ownerId={subject.ownerId} toast={toast} />
           <div className="card">
