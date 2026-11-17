@@ -30,7 +30,7 @@ const back = (result: string, why = '') =>
   Response.redirect(`${APP_URL}/settings?google=${result}${why ? `&why=${encodeURIComponent(why.slice(0, 120))}` : ''}`, 302);
 
 type Link = { user_id: number; refresh_token: string };
-type Day = { steps: number | null; sleep: number | null; strength: number | null; workouts: { type: string; minutes: number }[] };
+type Day = { steps: number | null; sleep: number | null; strength: number | null; workouts: { type: string; minutes: number; source: string }[]; spans: [number, number][] };
 
 async function token(params: Record<string, string>) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -62,7 +62,7 @@ const ymd = (o: { year: number; month: number; day: number }) =>
 
 /** Steps per local day + minutes asleep for sleep sessions that *ended* on each day. */
 async function fetchDays(access: string, days: string[], tz: string): Promise<Record<string, Day>> {
-  const out: Record<string, Day> = Object.fromEntries(days.map((d) => [d, { steps: null, sleep: null, strength: null, workouts: [] }]));
+  const out: Record<string, Day> = Object.fromEntries(days.map((d) => [d, { steps: null, sleep: null, strength: null, workouts: [], spans: [] }]));
   const first = days[0];
   const afterLast = S.addDays(days[days.length - 1], 1);
 
@@ -101,14 +101,30 @@ async function fetchDays(access: string, days: string[], tz: string): Promise<Re
         const minutes = Math.round(Number.isFinite(active) && active > 0 ? active / 60 : end ? (Date.parse(end) - Date.parse(start)) / 60000 : 0);
         const d = S.localDate(new Date(start), tz);
         if (!out[d]) continue;
-        out[d].workouts.push({ type, minutes });
-        if (/STRENGTH|WEIGHT|LIFT|FUNCTIONAL|CROSS|RESISTANCE/i.test(type)) out[d].strength = (out[d].strength ?? 0) + minutes;
+        const source = p.dataSource?.application?.packageName || p.dataSource?.device?.displayName || p.dataSource?.platform || '';
+        out[d].workouts.push({ type, minutes, source });
+        // The same session often arrives twice (Hevy via HealthKit + Fitbit auto-detect): keep spans, merge below.
+        if (/STRENGTH|WEIGHT|LIFT|FUNCTIONAL|CROSS|RESISTANCE/i.test(type)) {
+          const a = Date.parse(start), b = end ? Date.parse(end) : a + minutes * 60000;
+          if (b > a) out[d].spans.push([a, b]);
+        }
       }
       pageToken = ex.nextPageToken || '';
       if (!pageToken) break;
     }
   } catch (e) {
     console.error('google-health exercise', (e as Error).message);
+  }
+  for (const v of Object.values(out)) {
+    if (!v.spans.length) continue;
+    const spans = v.spans.sort((x, y) => x[0] - y[0]);
+    let total = 0, [cs, ce] = spans[0];
+    for (const [a, b] of spans.slice(1)) {
+      if (a <= ce) ce = Math.max(ce, b);
+      else { total += ce - cs; [cs, ce] = [a, b]; }
+    }
+    total += ce - cs;
+    v.strength = Math.round(total / 60000);
   }
   return out;
 }
