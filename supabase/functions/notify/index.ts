@@ -124,6 +124,81 @@ async function posts(o: Owner) {
   return sendTo(o.watchers.map((x) => x.authId), { ...msg, tag: `posts-${o.id}` });
 }
 
+// ── Weekly summary for watchers (D33) ───────────────────────────────────────────────
+// pg_cron POSTs {action:'weekly'} every 30 min. On the owner's report day, after the report
+// time (default Saturday 21:00, their timezone), each watcher gets one push and the feed gets a
+// «ملخص الأسبوع» card. The feed_events unique key (owner, kind, week) makes it once per week.
+
+const toMin = (t: string | null | undefined) => { const [h, m] = String(t || '21:00').split(':').map(Number); return h * 60 + (m || 0); };
+const verb = (change: number) => (change < 0 ? `نزل ${ar(Math.abs(change))} كيلو` : change > 0 ? `زاد ${ar(change)} كيلو` : 'ثابت');
+
+async function weeklyFor(ownerId: string, now: Date, preview = false) {
+  const { data: st } = await db.from('coach_settings').select('*').eq('user_id', ownerId).maybeSingle();
+  if (!st?.coach_enabled) return 'coach off';
+  const tz = st.timezone || 'Asia/Riyadh';
+  const today = S.localDate(now, tz);
+  if (!preview && S.dayOfWeek(today) !== (st.weekly_report_dow ?? 6)) return 'not today';
+  if (!preview && S.localMinutes(now, tz) < toMin(st.weekly_report_time)) return 'too early';
+  if (st.paused_until && st.paused_until >= today) return 'paused';
+
+  const [{ data: e }, { data: c }] = await Promise.all([
+    db.from('weight_entries').select('weight, recorded_at').eq('user_id', ownerId),
+    db.from('daily_checks').select('day, minimum_done, lifted, workout_label, steps, sleep_minutes, strength_minutes').eq('user_id', ownerId),
+  ]);
+  const entries = (e || []).map((r) => ({ date: r.recorded_at, weight: Number(r.weight) }));
+  const checks = c || [];
+  const snap = S.buildSnapshot({ entries, checks, settings: st, today });
+  const w = snap.thisWeek;
+  const weekDays = new Set(Array.from({ length: 7 }, (_, i) => S.addDays(w.week_start, i)));
+  const wk = checks.filter((x) => weekDays.has(x.day));
+  const avgOf = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const data = {
+    week_start: w.week_start,
+    avg: w.avg_weight, change: snap.weekChange, weighins: w.n_weighins,
+    minimum_days: w.minimum_days, lifting_days: w.lifting_days, lifting_required: st.lifting_days_required ?? 2,
+    steps_avg: avgOf(wk.map((x) => x.steps).filter((n): n is number => typeof n === 'number' && n > 0)),
+    sleep_avg: avgOf(wk.map((x) => x.sleep_minutes).filter((n): n is number => typeof n === 'number' && n > 0)),
+    streak: snap.streak, next_step: snap.ladder?.next ?? null, remaining: snap.ladder?.remaining_to_next ?? null,
+  };
+  if (!w.n_weighins && !w.minimum_days && !w.lifting_days) return 'empty week';
+
+  const o = await loadOwner(ownerId);
+  const parts: string[] = [];
+  if (data.change != null) parts.push(verb(data.change));
+  else if (data.avg != null) parts.push(`متوسطه ${ar(data.avg)}`);
+  parts.push(`أقل شي ${ar(data.minimum_days)} من ٧`);
+  parts.push(`حديد ${ar(data.lifting_days)}`);
+  if (data.steps_avg) parts.push(`${data.steps_avg.toLocaleString('ar-SA')} خطوة باليوم`);
+  const good = (data.change ?? 0) <= 0 && data.minimum_days >= 4;
+  const title = `${o?.name ?? 'صاحبك'} هالأسبوع ${good ? '💪' : '📊'}`;
+  if (preview) return `${title} | ${parts.join(' · ')}`;
+  const { data: ins } = await db.from('feed_events').upsert(
+    { owner_user_id: ownerId, kind: 'weekly_summary', local_date: today, gap_key: w.week_start, data },
+    { onConflict: 'owner_user_id,kind,gap_key', ignoreDuplicates: true },
+  ).select('id');
+  if (!ins?.length) return 'already sent';
+
+  if (!o?.watchers.length) return 'no watchers';
+  await sendTo(o.watchers.map((x) => x.authId), {
+    title,
+    body: parts.join(' · '),
+    url: `/feed?item=${encodeURIComponent(`day:${today}`)}`,
+    tag: `weekly-${ownerId}-${w.week_start}`,
+  });
+  return 'sent';
+}
+
+async function weekly(preview = false) {
+  const { data: rows } = await db.from('watchers').select('owner_user_id');
+  const owners = [...new Set((rows || []).map((r) => String(r.owner_user_id)))];
+  const now = new Date();
+  const out: Record<string, string> = {};
+  for (const id of owners) {
+    try { out[id] = await weeklyFor(id, now, preview); } catch (e) { out[id] = `error: ${(e as Error).message}`; }
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   const secret = req.headers.get('x-notify-secret') || '';
@@ -133,7 +208,9 @@ Deno.serve(async (req) => {
   // Without VAPID keys we can't push: leave every row unclaimed so nothing is lost.
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return json({ error: 'push not configured' }, 503);
 
-  const { owner_user_id } = await req.json().catch(() => ({}));
+  const body = await req.json().catch(() => ({}));
+  if (body.action === 'weekly') return json({ ok: true, weekly: await weekly(body.preview === true) });
+  const { owner_user_id } = body;
   const ownerId = String(owner_user_id ?? '');
   if (!/^-?\d+$/.test(ownerId)) return json({ error: 'owner_user_id' }, 400);
 

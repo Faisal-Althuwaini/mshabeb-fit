@@ -241,3 +241,7 @@ The migration must go first: the new code writes `weight_entries.source` and rea
 - Auth: a random secret created inside Vault; the trigger sends it, the function checks it with `notify_secret_ok` (service role only). Nobody ever reads it.
 - The function needs `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` as Supabase secrets; without them it answers 503 and leaves rows unclaimed.
 - Dropped: holding post pushes during the owner's quiet hours. Still on the bot: the "away 3 days" note, milestones, nudges, weekly report and Google Health sync (scheduled jobs). `NOTIFY_IN_BOT=1` restores the old polling.
+
+## D33 · Weekly summary for watchers (2026-11-17)
+- On the owner's report day after the report time (default Saturday 21:00, their timezone), every watcher gets one push, e.g. «فيصل هالأسبوع 💪 · نزل ٠٫٦ كيلو · أقل شي ٥ من ٧ · حديد ٢ · ٧٬١٤٠ خطوة باليوم», and the feed gets a «ملخص الأسبوع» card (average and change, minimum days, lifting, steps, sleep, streak, next ladder step).
+- Runs in Supabase, not the bot: **pg_cron** job `weekly-watch` (every 30 min) → `notify` function `{action:'weekly'}`. Once per owner per week via the `feed_events` unique key (kind `weekly_summary`, gap_key = week start). Skipped when the coach is off, paused, or the week is empty. `{action:'weekly', preview:true}` returns the text without sending.

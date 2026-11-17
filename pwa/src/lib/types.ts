@@ -79,7 +79,15 @@ export const MEASURE_FIELDS: { key: MeasureKey; label: string; unit: string }[] 
   { key: 'neck_cm', label: 'الرقبة', unit: 'سم' },
   { key: 'body_fat_pct', label: 'نسبة الدهون', unit: '٪' },
 ];
-export type FeedEvent = { id: number; owner_user_id: number; kind: 'missed_days' | 'milestone'; local_date: string; data: { days?: number; step?: number; avg?: number } | null; created_at: string };
+export type WeeklySummary = {
+  week_start: string; avg: number | null; change: number | null; weighins: number;
+  minimum_days: number; lifting_days: number; lifting_required: number;
+  steps_avg: number | null; sleep_avg: number | null; streak: number; next_step: number | null; remaining: number | null;
+};
+export type FeedEvent = {
+  id: number; owner_user_id: number; kind: 'missed_days' | 'milestone' | 'weekly_summary'; local_date: string;
+  data: ({ days?: number; step?: number; avg?: number } & Partial<WeeklySummary>) | null; created_at: string;
+};
 export type ItemKind = 'meal' | 'flex' | 'day';
 export type Reaction = { owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; emoji: string; created_at: string };
 export type Comment = { id: number; owner_user_id: number; item_kind: ItemKind; item_ref: string; author_auth_user_id: string; author_name: string | null; body: string; created_at: string };

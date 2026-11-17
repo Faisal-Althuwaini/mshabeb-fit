@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as data from '../lib/data';
 import type { Bundle, Mutate } from '../lib/data';
-import type { Subject, WhoAmI } from '../lib/types';
+import type { Subject, WeeklySummary, WhoAmI } from '../lib/types';
+import * as S from '../lib/stats';
 import { buildDays, indexSocial, itemKey } from '../lib/feed';
 import { ar, dateLabel, timeAgo } from '../lib/format';
 import Photo from '../components/Photo';
@@ -68,7 +69,10 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
               </div>
             )}
           </div>
-          {d.events.map((ev) => (
+          {d.events.filter((ev) => ev.kind === 'weekly_summary').map((ev) => (
+            <WeeklyCard key={ev.id} w={ev.data as WeeklySummary} name={subject.name} isOwner={subject.isOwner} />
+          ))}
+          {d.events.filter((ev) => ev.kind !== 'weekly_summary').map((ev) => (
             <div key={ev.id} className={`event ${ev.kind === 'milestone' ? 'win' : ''}`}>
               {ev.kind === 'milestone'
                 ? subject.isOwner
@@ -79,7 +83,7 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
                   : `${subject.name} غايب من ${ar(ev.data?.days ?? 3, 0)} أيام، يمكن يحتاج كلمة منك 👋`}
             </div>
           ))}
-          {(d.weight != null || d.check || d.events.some((e) => e.kind === 'milestone')) && socialFor('day', d.day)}
+          {(d.weight != null || d.check || d.events.some((e) => e.kind === 'milestone' || e.kind === 'weekly_summary')) && socialFor('day', d.day)}
           {[
             ...d.meals.map((m) => ({ at: m.posted_at, key: `m${m.id}`, node: (
 
@@ -156,6 +160,34 @@ function PostMeal({ ownerId, today, onClose, onDone, toast }: { ownerId: number;
           <button className="btn ghost" onClick={onClose}>إلغاء</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** «ملخص الأسبوع» (D33): sent to watchers on the owner's report day. */
+function WeeklyCard({ w, name, isOwner }: { w: WeeklySummary; name: string; isOwner: boolean }) {
+  if (!w) return null;
+  const n = (x: number) => S.toArabicDigits(x, 0);
+  const change = w.change == null ? null : w.change < 0 ? `نزل ${ar(Math.abs(w.change))} كيلو 👏` : w.change > 0 ? `زاد ${ar(w.change)} كيلو` : 'ثابت';
+  const sleep = w.sleep_avg ? `${n(Math.floor(w.sleep_avg / 60))} س ${n(w.sleep_avg % 60)} د` : null;
+  const rows: [string, string][] = [
+    ['⚖️ المتوسط', w.avg != null ? `${ar(w.avg)} كغ${change ? ` · ${change}` : ''}` : '—'],
+    ['🚶 أقل شي', `${n(w.minimum_days)} من ٧ أيام`],
+    ['🏋️ حديد', `${n(w.lifting_days)} من ${n(w.lifting_required)}`],
+  ];
+  if (w.steps_avg) rows.push(['👣 الخطوات', `${w.steps_avg.toLocaleString('ar-SA')} باليوم`]);
+  if (sleep) rows.push(['😴 النوم', `${sleep} بالليلة`]);
+  if (w.streak) rows.push(['🔥 السلسلة', `${n(w.streak)} يوم`]);
+  return (
+    <div className="weekly-card">
+      <div className="weekly-head">📊 {isOwner ? 'ملخص أسبوعك' : `${name} هالأسبوع`}</div>
+      {rows.map(([k, v]) => (
+        <div key={k} className="row between weekly-row"><span className="muted">{k}</span><b>{v}</b></div>
+      ))}
+      {w.next_step != null && w.remaining != null && w.remaining > 0 && (
+        <div className="weekly-foot">🪜 الدرجة الجاية {ar(w.next_step)} · باقي {ar(w.remaining)} كيلو</div>
+      )}
+      {isOwner && <div className="small faint" style={{ marginTop: 6 }}>وصل لصاحبك إشعار فيه 👀</div>}
     </div>
   );
 }

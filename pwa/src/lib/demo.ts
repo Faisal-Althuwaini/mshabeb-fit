@@ -27,7 +27,8 @@ export function demoData(today: string, role: 'owner' | 'watcher') {
     meals: [{ id: 1, user_id: 1, local_date: S.addDays(today, -1), posted_at: new Date(Date.now() - 86400000).toISOString(), storage_path: 'demo.jpg', caption: 'غدا: صدر دجاج ورز', source: 'telegram' }],
     flex: [0, 1, 2].map((i) => ({ id: 100 + i, user_id: 1, taken_on: S.addDays(today, -1), storage_path: `demo-flex-${i}`, weight_at_time: 107.3, shared_with_watchers: true, caption: null, is_comparison: false, created_at: new Date().toISOString(), post_id: 11, position: i }))
       .concat([0, 1].map((i) => ({ id: 200 + i, user_id: 1, taken_on: S.addDays(today, -36), storage_path: `demo-flex-old-${i}`, weight_at_time: 110.6, shared_with_watchers: false, caption: null, is_comparison: false, created_at: new Date().toISOString(), post_id: 10, position: i }))),
-    events: [],
+    events: [{ id: 9001, owner_user_id: 1, kind: 'weekly_summary', local_date: S.addDays(today, -1), created_at: new Date().toISOString(),
+      data: { week_start: S.addDays(today, -7), avg: 107.2, change: -0.6, weighins: 6, minimum_days: 5, lifting_days: 2, lifting_required: 2, steps_avg: 7140, sleep_avg: 452, streak: 11, next_step: 106, remaining: 1.2 } }] as never,
     reactions: [{ owner_user_id: 1, item_kind: 'day', item_ref: S.addDays(today, -1), author_auth_user_id: 'friend', emoji: '🔥', created_at: new Date().toISOString() }],
     views: [{ owner_user_id: 1, item_kind: 'meal', item_ref: '1', viewer_auth_user_id: 'friend', seen_at: new Date().toISOString() }],
     watchers: [{ owner_user_id: 1, watcher_auth_user_id: 'friend', display_name: 'سعد', created_at: new Date().toISOString() }],
