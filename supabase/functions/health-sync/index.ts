@@ -58,7 +58,13 @@ Deno.serve(async (req) => {
   const didLift = (strength != null && strength >= (settings.strength_min_minutes ?? 20)) || (workouts != null && workouts > 0) || liftedFlag;
   const sleepRaw = num(body.sleep_minutes ?? body.sleep);
   const sleepHours = num(body.sleep_hours);
-  const sleep = sleepHours != null ? Math.round(sleepHours * 60) : toMinutes(sleepRaw, 1200);
+  // Shortcuts may sum sleep durations as hours (7.2), minutes (432) or seconds (25920):
+  // ≤ 24 can only be hours, > 1200 can only be seconds.
+  const sleep = sleepHours != null ? Math.round(sleepHours * 60)
+    : sleepRaw == null ? null
+    : sleepRaw <= 24 ? Math.round(sleepRaw * 60)
+    : sleepRaw > 1200 ? Math.round(sleepRaw / 60)
+    : Math.round(sleepRaw);
   if (steps != null && (steps < 0 || steps > 150000)) return json({ error: 'steps out of range' }, 400);
   if (strength != null && strength > 600) return json({ error: 'strength minutes out of range' }, 400);
   if (sleep != null && sleep > 1200) return json({ error: 'sleep out of range' }, 400);
