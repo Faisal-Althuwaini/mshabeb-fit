@@ -234,3 +234,10 @@ The migration must go first: the new code writes `weight_entries.source` and rea
 - Faisal wanted watchers notified about everything. `meal_posts`, `flex_posts`, `weight_entries` got `notified_at` (migration `20261117300000`, existing rows stamped so nothing old is sent).
 - The notifier (every minute, `processOwnerPosts`) groups new rows per owner into **one** push: «فيصل سجّل وزنه: ١١٠٫٥ كغ ⚖️», «فيصل نزّل وجبة 🍽️», «فيصل شارك فليكس 💪», or «فيصل نزّل جديد» with a summary.
 - It waits 2 minutes after the newest item (quick posts batch; an instant edit or delete isn't announced), holds news during the owner's quiet hours, and never announces anything older than 12 hours. Private Flex posts wait and are announced if shared later; an edited weight on the same day is not re-sent.
+
+## D32 · Notifications move from the bot to Supabase (2026-11-17)
+- Faisal wants the site independent of the bot and notifications faster. Comments, reactions and owner posts (meals, shared Flex, weight) are now pushed by the **`notify` edge function**, called by database triggers through **pg_net** (migration `20261117400000_instant_notify.sql`).
+- One job per owner in `notify_pending`, due 20 s after the first event: quick posts batch into one push. The function claims rows with `update … where notified_at is null returning`, so two runs never send the same thing. A stuck job (> 2 min) is replaced on the next event.
+- Auth: a random secret created inside Vault; the trigger sends it, the function checks it with `notify_secret_ok` (service role only). Nobody ever reads it.
+- The function needs `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` as Supabase secrets; without them it answers 503 and leaves rows unclaimed.
+- Dropped: holding post pushes during the owner's quiet hours. Still on the bot: the "away 3 days" note, milestones, nudges, weekly report and Google Health sync (scheduled jobs). `NOTIFY_IN_BOT=1` restores the old polling.

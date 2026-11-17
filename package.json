@@ -9,7 +9,8 @@
     "test": "node --test",
     "deploy:chat": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy coach-chat --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt",
     "deploy:health": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy health-sync --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt",
-    "deploy:google": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy google-health --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt"
+    "deploy:google": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy google-health --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt",
+    "deploy:notify": "sh scripts/sync-shared.sh && npx -y supabase@2.121.0 functions deploy notify --project-ref fdkieikygfcvqwbrtzdi --use-api --no-verify-jwt"
   },
   "keywords": [
     "telegram",

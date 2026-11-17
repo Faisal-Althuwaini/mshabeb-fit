@@ -301,15 +301,19 @@ async function processOwnerPosts(now = new Date()) {
 }
 
 function startNotifier(cron) {
-  cron.schedule('* * * * *', async () => {
-    try {
-      await processComments();
-      await processReactions();
-      await processOwnerPosts();
-    } catch (e) {
-      console.error('notifier error:', e.message);
-    }
-  });
+  // Comments, reactions and owner posts are pushed instantly by the `notify` edge function
+  // (database triggers, D32). Set NOTIFY_IN_BOT=1 to fall back to polling here.
+  if (process.env.NOTIFY_IN_BOT === '1') {
+    cron.schedule('* * * * *', async () => {
+      try {
+        await processComments();
+        await processReactions();
+        await processOwnerPosts();
+      } catch (e) {
+        console.error('notifier error:', e.message);
+      }
+    });
+  }
   cron.schedule('*/15 * * * *', () => processMissedDays().catch((e) => console.error('missed-days job:', e.message)));
   console.log(`Social notifier started (push ${push.isEnabled() ? 'enabled' : 'disabled: no VAPID keys'}).`);
 }
