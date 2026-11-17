@@ -60,14 +60,16 @@ Deno.serve(async (req) => {
   const sleepHours = num(body.sleep_hours);
   // Shortcuts may sum sleep durations as hours (7.2), minutes (432) or seconds (25920):
   // ≤ 24 can only be hours, > 1200 can only be seconds.
-  const sleep = sleepHours != null ? Math.round(sleepHours * 60)
+  let sleep = sleepHours != null ? Math.round(sleepHours * 60)
     : sleepRaw == null ? null
     : sleepRaw <= 24 ? Math.round(sleepRaw * 60)
     : sleepRaw > 1200 ? Math.round(sleepRaw / 60)
     : Math.round(sleepRaw);
   if (steps != null && (steps < 0 || steps > 150000)) return json({ error: 'steps out of range' }, 400);
   if (strength != null && strength > 600) return json({ error: 'strength minutes out of range' }, 400);
-  if (sleep != null && sleep > 1200) return json({ error: 'sleep out of range' }, 400);
+  // Without a «Value is Asleep» filter, In Bed + sleep stages overlap and the sum is inflated.
+  // Sleep is display-only, so drop an implausible total instead of rejecting steps/workouts.
+  if (sleep != null && (sleep < 0 || sleep > 960)) sleep = null;
 
   const { data: cur } = await db.from('daily_checks').select('*').eq('user_id', userId).eq('day', day).maybeSingle();
   const goal = settings.steps_goal ?? 6000;
