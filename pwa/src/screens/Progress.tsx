@@ -3,7 +3,7 @@ import * as S from '../lib/stats';
 import type { Bundle } from '../lib/data';
 import type { Subject } from '../lib/types';
 import { targetLine } from '../lib/feed';
-import { ar, arInt, daysAr } from '../lib/format';
+import { ar, arInt, daysAr, shortDate } from '../lib/format';
 import WeightChart from '../components/WeightChart';
 import Ladder from '../components/Ladder';
 import { MEASURE_FIELDS } from '../lib/types';
@@ -67,7 +67,7 @@ export default function Progress({ subject, bundle, today, toast }: { subject: S
                 return <span key={f.key}>{f.label} <b>{ar(last[f.key])}</b> {f.unit}{d != null && d !== 0 && <span className={d < 0 ? 'down' : 'up'}> {S.formatDelta(d)}</span>}</span>;
               })}
             </div>
-            {first !== last && <p className="small faint" style={{ marginBottom: 0 }}>الفرق من أول قياس ({first.day})</p>}
+            {first !== last && <p className="small faint" style={{ marginBottom: 0 }}>الفرق من أول قياس ({shortDate(first.day)})</p>}
           </div>
         ) : null;
       })()}

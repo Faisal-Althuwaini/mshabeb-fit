@@ -7,7 +7,7 @@ import type { Settings, WhoAmI } from './types';
 export function demoData(today: string, role: 'owner' | 'watcher') {
   const settings: Settings = {
     user_id: 1, coach_enabled: true, start_weight: 112, goal_weight: 90, target_loss_per_4w: 3, ladder_step: 2,
-    minimum_action: 'مشي ١٥ دقيقة', lifting_days_required: 2, week_start_dow: 0, timezone: 'Asia/Riyadh',
+    minimum_action: 'مشي ٣٠ دقيقة', lifting_days_required: 2, week_start_dow: 0, timezone: 'Asia/Riyadh',
     morning_check_time: '11:00:00', evening_check_time: '20:00:00', quiet_start: '23:00:00', quiet_end: '08:00:00',
     weekly_report_dow: 6, weekly_report_time: '21:00:00', paused_until: null, coach_started_on: S.addDays(today, -69), display_name: 'فيصل',
   };
@@ -51,9 +51,13 @@ export function demoCoachMessages() {
   const now = Date.now();
   const iso = (minsAgo: number) => new Date(now - minsAgo * 60000).toISOString();
   return [
-    { id: 5, kind: 'chat_coach', content: 'عادي جداً 👌 الوزن اليومي يتأثر بالملح والماي. متوسطك هالأسبوع ١٠٧٫٢ وهو أقل من اللي فات. كمّل أقل شي اليوم وبس.', data: null, created_at: iso(3), used_fallback: false },
-    { id: 4, kind: 'chat_user', content: 'ليه وزني اليوم زاد؟', data: null, created_at: iso(4), used_fallback: false },
-    { id: 3, kind: 'nudge_morning', content: 'صباح الخير 👋 لا تنسى ترسل وزنك اليوم، وخلّ أقل شي (مشي ١٥ دقيقة) في بالك.', data: null, created_at: iso(300), used_fallback: true },
+    { id: 9, kind: 'chat_coach', content: 'عادي، الاستمرار أهم من الكمال 💪 امشِ اليوم ٣٠ دقيقة وبس، هذا «أقل شي» ويحسب لك. وبكرة نرجع للحديد.', data: null, created_at: iso(1), used_fallback: false },
+    { id: 8, kind: 'chat_user', content: 'اليوم تعبان وما أقدر أروح الجيم', data: null, created_at: iso(2), used_fallback: false },
+    { id: 7, kind: 'chat_coach', content: 'متوسطك هالأسبوع ١٠٧٫٢ والأسبوع اللي فات ١٠٧٫٨، يعني نازل ٠٫٦ 👏 واضح إن المشي اليومي فرق. باقي لك ١٫٢ على درجة ١٠٦.', data: null, created_at: iso(3), used_fallback: false },
+    { id: 6, kind: 'chat_user', content: 'كم نقصت هالأسبوع؟', data: null, created_at: iso(4), used_fallback: false },
+    { id: 5, kind: 'chat_coach', content: 'عادي جداً 👌 الوزن اليومي يتأثر بالملح والماي. متوسطك هالأسبوع أقل من اللي فات، وهذا اللي يهم.', data: null, created_at: iso(6), used_fallback: false },
+    { id: 4, kind: 'chat_user', content: 'ليه وزني اليوم زاد؟', data: null, created_at: iso(7), used_fallback: false },
+    { id: 3, kind: 'nudge_morning', content: 'صباح الخير 👋 لا تنسى ترسل وزنك اليوم، وخلّ أقل شي (مشي ٣٠ دقيقة) في بالك.', data: null, created_at: iso(300), used_fallback: true },
     { id: 2, kind: 'weekly_report', content: '📊 أسبوع نازل 👏', created_at: iso(60 * 30), used_fallback: false, data: { report: {
       headline: 'أسبوع نازل 👏 كمّل كذا', went_well: ['المتوسط نزل ٠٫٦ كيلو', 'سويت أقل شي ٥ أيام'],
       watch_out: ['الحديد ١ من ٢، باقي حصة'], focus_next_week: 'حصتين حديد: أمامي الأحد وخلفي الأربعاء', tone: 'celebrate' } } },
