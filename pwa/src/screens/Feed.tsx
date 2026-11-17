@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import * as data from '../lib/data';
 import type { Bundle, Mutate } from '../lib/data';
 import type { Subject, WhoAmI } from '../lib/types';
@@ -80,7 +80,9 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
             </div>
           ))}
           {(d.weight != null || d.check || d.events.some((e) => e.kind === 'milestone')) && socialFor('day', d.day)}
-          {d.meals.map((m) => (
+          {[
+            ...d.meals.map((m) => ({ at: m.posted_at, key: `m${m.id}`, node: (
+
             <div key={m.id} className="post">
               <Photo bucket="meal-photos" path={m.storage_path} className="ph" alt={m.caption || 'وجبة'} />
               {m.caption && <div className="cap">{m.caption}</div>}
@@ -97,8 +99,9 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
               </div>
               {socialFor('meal', m.id)}
             </div>
-          ))}
-          {d.flex.map(({ post, photos, m }) => (
+                      ) })),
+            ...d.flex.map(({ post, photos, m }) => ({ at: post.created_at, key: `f${post.id}`, node: (
+
             <div key={post.id} className="post">
               <Carousel bucket="flex-photos" paths={photos.map((p) => p.storage_path)} alt="فليكس" />
               <div className="cap">
@@ -111,7 +114,8 @@ export default function Feed({ subject, bundle, today, me, who, onChanged, mutat
               )}
               {socialFor('flex', post.id)}
             </div>
-          ))}
+                      ) })),
+          ].sort((x, y) => y.at.localeCompare(x.at)).map((it) => <Fragment key={it.key}>{it.node}</Fragment>)}
         </article>
       ))}
       {days.length >= limit && <button className="btn ghost block" onClick={() => setLimit((l) => l + 14)}>أقدم</button>}
