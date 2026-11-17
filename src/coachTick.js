@@ -132,7 +132,7 @@ async function checkMilestones(bot, { S, userId, settings, snapshot, today, name
     return { step, text };
   }
   const channels = [];
-  try { await bot.telegram.sendMessage(userId, text); channels.push('telegram'); } catch (e) { console.error('milestone telegram failed:', e.message); }
+  try { await bot.telegram.sendMessage(userId, text); channels.push('telegram'); } catch (e) { if (!e.appOnly) console.error('milestone telegram failed:', e.message); }
   if (authId) {
     const n = await push.sendToAuthUsers([authId], { title: 'مشبب 🎉', body: text.split('\n')[0], url: '/progress', tag: `milestone-${step}` }).catch(() => 0);
     if (n > 0) channels.push('push');
@@ -198,7 +198,7 @@ async function runTick(bot, now = new Date()) {
           await bot.telegram.sendMessage(userId, text);
           channels.push('telegram');
         } catch (e) {
-          console.error(`nudge telegram failed (${kind}):`, e.response?.error_code || '', e.message);
+          if (!e.appOnly) console.error(`nudge telegram failed (${kind}):`, e.response?.error_code || '', e.message);
         }
         if (u?.auth_user_id) {
           const n = await push.sendToAuthUsers([u.auth_user_id], { title: 'مشبب', body: text, url: '/', tag: kind }).catch(() => 0);

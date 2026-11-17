@@ -218,3 +218,9 @@ The migration must go first: the new code writes `weight_entries.source` and rea
 - **Workouts too:** Hevy → Apple Health → Google Health shows up as `exercise` data points (`exerciseType: STRENGTH_TRAINING`, verified on Faisal's data). Strength-like types are summed into `strength_minutes`; ≥ `strength_min_minutes` (20) ticks «حديد». The Shortcut is now only a fallback; when Google is linked, `health-sync` ignores Shortcut steps and sleep (workouts still count).
 - **Google Cloud (Faisal):** OAuth client (Web), redirect URI `https://fdkieikygfcvqwbrtzdi.supabase.co/functions/v1/google-health`; secrets `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` set on the Supabase project. Publish the consent screen to **In production** (unverified is fine for personal use); in "Testing" the refresh token dies after 7 days.
 - Migration `20261117100000_google_health.sql`. Deploy: `npm run deploy:google`.
+
+## D29 · Sign up in the app, no Telegram (2026-11-17)
+- To share the site publicly, a new account can start coaching from the PWA: name, current weight, goal, and «أقل شي» (RPC `start_coach`, migration `20261117200000_app_signup.sql`). It also replaces `/coach 90` for a Telegram-linked account whose coach is off.
+- Every table is keyed by `users.telegram_user_id`, so app-only users get a **negative** id from `app_user_seq` (real Telegram ids are positive). No schema change elsewhere.
+- The bot's `sendMessage`/`sendPhoto` reject negative ids up front (`src/index.js`); every job already catches a failed send and still delivers by Web Push, so nudges, the weekly report and milestones reach app-only users as notifications.
+- Linking the Telegram bot stays available under the form for existing bot users. Settings hides the Telegram card for app-only users.

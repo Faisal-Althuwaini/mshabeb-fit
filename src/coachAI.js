@@ -98,7 +98,7 @@ async function sendWeeklyReport(bot, userId, now = new Date(), { dry = false } =
   const deliver = async (kind, text, data, usedFallback, url) => {
     if (dry) { console.log(`[DRY_RUN] ${userId} ${kind}: ${text}`); sent.push({ kind, text }); return; }
     const channels = [];
-    try { await bot.telegram.sendMessage(userId, text); channels.push('telegram'); } catch (e) { console.error(`${kind} telegram failed:`, e.message); }
+    try { await bot.telegram.sendMessage(userId, text); channels.push('telegram'); } catch (e) { if (!e.appOnly) console.error(`${kind} telegram failed:`, e.message); }
     if (authId) {
       const n = await push.sendToAuthUsers([authId], { title: 'مشبب', body: text.split('\n')[0].replace(/^📊 /, ''), url, tag: kind }).catch(() => 0);
       if (n > 0) channels.push('push');

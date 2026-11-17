@@ -35,10 +35,12 @@ export default function SettingsScreen({ subject, settings, bundle, me, who, onS
           <HealthCard settings={settings} bundle={bundle} onSaved={onSaved} toast={toast} />
           <CoachForm settings={settings} onSaved={onSaved} toast={toast} />
           <Watchers ownerId={subject.ownerId} toast={toast} />
-          <div className="card">
-            <h2>تيليجرام</h2>
-            <p className="muted" style={{ margin: 0 }}>✅ مربوط بمشبب. اللي تسجله هنا يطلع هناك، والعكس.</p>
-          </div>
+          {subject.ownerId > 0 && (
+            <div className="card">
+              <h2>تيليجرام</h2>
+              <p className="muted" style={{ margin: 0 }}>✅ مربوط بمشبب. اللي تسجله هنا يطلع هناك، والعكس.</p>
+            </div>
+          )}
           <div className="card">
             <h2>بياناتك</h2>
             <button className="btn ghost block" onClick={() => {

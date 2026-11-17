@@ -221,6 +221,9 @@ export async function deleteComment(id: number) {
 // ── Linking & watchers ────────────────────────────────────────────────────
 
 export const createLinkCode = async () => must(await supabase.rpc('create_link_code')) as string;
+/** App-only sign-up (D29): start coaching without Telegram. Returns the user id. */
+export const startCoach = async (name: string, start: number, goal: number, minimum: string) =>
+  must(await supabase.rpc('start_coach', { p_name: name, p_start: start, p_goal: goal, p_minimum: minimum })) as number;
 /** Apple Health sync token (D27). Returned once; only its hash is stored. */
 export const createHealthToken = async () => must(await supabase.rpc('create_health_token')) as string;
 export const revokeHealthToken = async () => { must(await supabase.rpc('revoke_health_token')); };

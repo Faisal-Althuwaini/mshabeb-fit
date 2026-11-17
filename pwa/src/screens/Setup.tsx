@@ -5,7 +5,9 @@ import * as data from '../lib/data';
 import * as S from '../lib/stats';
 import type { WhoAmI } from '../lib/types';
 
-/** First run: link Telegram (owner) or enter a watch invite (friend). */
+const MINIMUMS = ['مشي ١٥ دقيقة', 'مشي ٣٠ دقيقة', '٥٠٠٠ خطوة', '١٠ دقايق تمارين'];
+
+/** First run: start coaching in the app (D29), link the Telegram bot, or enter a watch invite (friend). */
 export default function Setup({ who, me, onDone, toast }: { who: WhoAmI; me: User; onDone: () => void; toast: (m: string) => void }) {
   const [code, setCode] = useState<string | null>(null);
   const [invite, setInvite] = useState('');
@@ -13,6 +15,22 @@ export default function Setup({ who, me, onDone, toast }: { who: WhoAmI; me: Use
   const [busy, setBusy] = useState(false);
 
   const linked = !!who.telegram_user_id;
+  const [myName, setMyName] = useState(who.first_name || '');
+  const [startW, setStartW] = useState('');
+  const [goalW, setGoalW] = useState('');
+  const [minimum, setMinimum] = useState(MINIMUMS[0]);
+
+  const start = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const n = (v: string) => parseFloat(S.normalizeDigits(v).replace(/[^\d.]/g, ''));
+    const sw = n(startW), gw = n(goalW);
+    if (!myName.trim()) return toast('اكتب اسمك');
+    if (!(sw >= 30 && sw <= 300)) return toast('اكتب وزنك الحين بالكيلو');
+    if (!(gw >= 30 && gw < sw)) return toast('الهدف لازم يكون أقل من وزنك الحين');
+    setBusy(true);
+    try { await data.startCoach(myName.trim(), sw, gw, minimum); toast('هلا والله 💪 بدينا'); onDone(); }
+    catch (err) { toast((err as Error).message); } finally { setBusy(false); }
+  };
 
   const makeCode = async () => {
     setBusy(true);
@@ -37,28 +55,46 @@ export default function Setup({ who, me, onDone, toast }: { who: WhoAmI; me: Use
       <h1>هلا 👋</h1>
       <p className="muted center" style={{ marginTop: 0 }}>{me.email}</p>
 
-      {linked && !who.coach_enabled ? (
-        <div className="card">
-          <h2>فعّل المدرب أول</h2>
-          <p className="muted" style={{ marginTop: 0 }}>حسابك مربوط بتيليجرام، بس المدرب مو شغّال. أرسل لمشبب:</p>
-          <div className="code" style={{ fontSize: 22, letterSpacing: 1 }}>/coach 90</div>
-          <button className="btn ghost block" style={{ marginTop: 12 }} onClick={onDone}>سويتها، حدّث</button>
+      <form className="card stack" onSubmit={start}>
+        <h2 style={{ margin: 0 }}>🧭 أبي أنزل وزني</h2>
+        <p className="muted small" style={{ margin: 0 }}>أربع أسئلة وتبدأ. تقدر تغيّرها بعدين من الإعدادات.</p>
+        <label className="field"><span>اسمك</span>
+          <input className="input" value={myName} onChange={(e) => setMyName(e.target.value)} maxLength={40} placeholder="فيصل" />
+        </label>
+        <div className="grid2">
+          <label className="field"><span>وزنك الحين (كغ)</span>
+            <input className="input" inputMode="decimal" dir="ltr" value={startW} onChange={(e) => setStartW(e.target.value)} placeholder="95" />
+          </label>
+          <label className="field"><span>هدفك (كغ)</span>
+            <input className="input" inputMode="decimal" dir="ltr" value={goalW} onChange={(e) => setGoalW(e.target.value)} placeholder="80" />
+          </label>
         </div>
-      ) : (
-        <div className="card">
-          <h2>🧭 أنا اللي أنزل وزني</h2>
-          <p className="muted" style={{ marginTop: 0 }}>اربط التطبيق بمشبب في تيليجرام، عشان يكون كل شي في مكان واحد.</p>
-          {code ? (
-            <>
-              <div className="code">{code}</div>
-              <p className="muted small">أرسل لمشبب في تيليجرام: <b dir="ltr">/link {code}</b> (صالح ١٠ دقايق)</p>
-              <button className="btn accent block" onClick={onDone}>أرسلته، كمّل</button>
-            </>
-          ) : (
-            <button className="btn accent block" onClick={makeCode} disabled={busy}>اعطني كود الربط</button>
-          )}
+        <div className="field">
+          <span>«أقل شي» حقك: الحد الأدنى اللي تسويه حتى في أسوأ يوم</span>
+          <div className="day-chips">
+            {MINIMUMS.map((m) => (
+              <button type="button" key={m} className={minimum === m ? 'on' : ''} onClick={() => setMinimum(m)}>{m}</button>
+            ))}
+          </div>
         </div>
-      )}
+        <button className="btn accent block" disabled={busy}>يلا نبدأ 💪</button>
+        {!linked && (
+          <details>
+            <summary className="small faint">تستخدم بوت مشبب في تيليجرام؟ اربطه بدال</summary>
+            <div className="stack" style={{ marginTop: 8 }}>
+              {code ? (
+                <>
+                  <div className="code">{code}</div>
+                  <p className="muted small" style={{ margin: 0 }}>أرسل للبوت: <b dir="ltr">/link {code}</b> (صالح ١٠ دقايق)</p>
+                  <button type="button" className="btn ghost block" onClick={onDone}>أرسلته، كمّل</button>
+                </>
+              ) : (
+                <button type="button" className="btn ghost block" onClick={makeCode} disabled={busy}>اعطني كود الربط</button>
+              )}
+            </div>
+          </details>
+        )}
+      </form>
 
       <div className="card">
         <h2>👀 أنا جاي أتابع صاحبي</h2>

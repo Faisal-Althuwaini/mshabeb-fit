@@ -23,6 +23,14 @@ const { handleReminder, getReminder, setReminder } = require('./handlers/reminde
 const { BOT_TOKEN } = getConfig();
 const bot = new Telegraf(BOT_TOKEN);
 
+// App-only users (signed up in the PWA, D29) have negative ids and no Telegram chat.
+// Every job already catches a failed send and still delivers by Web Push.
+for (const m of ['sendMessage', 'sendPhoto']) {
+  const orig = bot.telegram[m].bind(bot.telegram);
+  bot.telegram[m] = (chatId, ...rest) =>
+    Number(chatId) < 0 ? Promise.reject(Object.assign(new Error('app-only user (no Telegram)'), { appOnly: true })) : orig(chatId, ...rest);
+}
+
 bot.start(handleStart);
 bot.command('weight', handleWeightCommand);
 bot.command('log', handleWeightCommand);
