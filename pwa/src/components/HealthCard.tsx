@@ -44,8 +44,8 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
     <div className="card stack">
       <h2 style={{ margin: 0 }}>⌚ الخطوات والنوم</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        اربط Google Health (ساعة Fitbit) وتوصل خطواتك ونومك لمشبب تلقائياً كل ٢٠ دقيقة.
-        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅» لحاله.
+        اربط Google Health وتوصل خطواتك ونومك وتمارينك (Fitbit، وHevy عن طريق Apple Health) لمشبب تلقائياً كل ٢٠ دقيقة.
+        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅»، وإذا تمرنت حديد ٢٠ دقيقة أو أكثر ينعلّم «حديد ✅».
       </p>
       <div className="row between">
         <span className="small">
@@ -72,9 +72,9 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
       </label>
       {google && <button className="link-btn faint small" onClick={async () => { if (confirm('توقف ربط Google Health؟')) { await data.disconnectGoogleHealth(); await onSaved(); } }}>إلغاء ربط Google Health</button>}
       <details className="box">
-        <summary>🍎 اختصار Apple Health (لتمارين Hevy)</summary>
+        <summary>🍎 اختصار Apple Health (احتياطي، ما تحتاجه مع Google Health)</summary>
         <div className="stack" style={{ marginTop: 10 }}>
-        <p className="small muted" style={{ margin: 0 }}>Hevy ما يكتب في Google Health، فتمارين الحديد توصل عن طريق اختصار بالآيفون: إذا سجّلت تمرين اليوم ينعلّم «حديد ✅».</p>
+        <p className="small muted" style={{ margin: 0 }}>إذا ما تستخدم Google Health، الاختصار يرسل تمارين Hevy من Apple Health: إذا سجّلت تمرين اليوم ينعلّم «حديد ✅».</p>
       <div className="row between">
         <span className="small">{connected ? (last ? `✅ آخر مزامنة ${timeAgo(last)}` : '⏳ مربوط، بانتظار أول مزامنة') : '❌ مو مربوط'}</span>
         <button className="btn ghost" style={{ minHeight: 38 }} onClick={make} disabled={busy}>{connected ? 'مفتاح جديد' : 'اعطني المفتاح'}</button>

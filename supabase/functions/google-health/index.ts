@@ -30,7 +30,7 @@ const back = (result: string, why = '') =>
   Response.redirect(`${APP_URL}/settings?google=${result}${why ? `&why=${encodeURIComponent(why.slice(0, 120))}` : ''}`, 302);
 
 type Link = { user_id: number; refresh_token: string };
-type Day = { steps: number | null; sleep: number | null };
+type Day = { steps: number | null; sleep: number | null; strength: number | null; workouts: { type: string; minutes: number }[] };
 
 async function token(params: Record<string, string>) {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -62,7 +62,7 @@ const ymd = (o: { year: number; month: number; day: number }) =>
 
 /** Steps per local day + minutes asleep for sleep sessions that *ended* on each day. */
 async function fetchDays(access: string, days: string[], tz: string): Promise<Record<string, Day>> {
-  const out: Record<string, Day> = Object.fromEntries(days.map((d) => [d, { steps: null, sleep: null }]));
+  const out: Record<string, Day> = Object.fromEntries(days.map((d) => [d, { steps: null, sleep: null, strength: null, workouts: [] }]));
   const first = days[0];
   const afterLast = S.addDays(days[days.length - 1], 1);
 
@@ -86,12 +86,36 @@ async function fetchDays(access: string, days: string[], tz: string): Promise<Re
     const d = S.localDate(new Date(end), tz);
     if (out[d]) out[d].sleep = (out[d].sleep ?? 0) + Math.round(mins);
   }
+  // Workouts (Hevy → Apple Health → Google Health). Shape probed generically; never breaks steps/sleep.
+  try {
+    const ef = `exercise.interval.civil_start_time >= "${first}" AND exercise.interval.civil_start_time < "${afterLast}"`;
+    let pageToken = '';
+    for (let i = 0; i < 4; i++) {
+      const ex = await api(`exercise/dataPoints?pageSize=25&filter=${encodeURIComponent(ef)}${pageToken ? `&pageToken=${pageToken}` : ''}`, access);
+      for (const p of ex.dataPoints || []) {
+        const e = p.exercise || {};
+        const start = e.interval?.startTime, end = e.interval?.endTime;
+        if (!start) continue;
+        const type = String(e.exerciseType ?? e.type ?? e.activityType ?? e.displayName ?? 'UNKNOWN');
+        const active = Number(String(e.activeDuration ?? e.metricsSummary?.activeDuration ?? '').replace(/s$/, ''));
+        const minutes = Math.round(Number.isFinite(active) && active > 0 ? active / 60 : end ? (Date.parse(end) - Date.parse(start)) / 60000 : 0);
+        const d = S.localDate(new Date(start), tz);
+        if (!out[d]) continue;
+        out[d].workouts.push({ type, minutes });
+        if (/STRENGTH|WEIGHT|LIFT|FUNCTIONAL|CROSS|RESISTANCE/i.test(type)) out[d].strength = (out[d].strength ?? 0) + minutes;
+      }
+      pageToken = ex.nextPageToken || '';
+      if (!pageToken) break;
+    }
+  } catch (e) {
+    console.error('google-health exercise', (e as Error).message);
+  }
   return out;
 }
 
 async function syncUser(db: SupabaseClient, link: Link) {
   const { data: settings } = await db.from('coach_settings')
-    .select('coach_enabled, timezone, steps_goal').eq('user_id', link.user_id).maybeSingle();
+    .select('coach_enabled, timezone, steps_goal, strength_min_minutes').eq('user_id', link.user_id).maybeSingle();
   if (!settings?.coach_enabled) return { user_id: link.user_id, skipped: 'coach_off' };
   const tz = settings.timezone || 'Asia/Riyadh';
   const today = S.localDate(new Date(), tz);
@@ -103,18 +127,18 @@ async function syncUser(db: SupabaseClient, link: Link) {
     const got = await fetchDays(access_token, days, tz);
     const now = new Date().toISOString();
     for (const day of days) {
-      const { steps, sleep } = got[day];
-      if (steps == null && sleep == null) continue;
+      const { steps, sleep, strength } = got[day];
+      if (steps == null && sleep == null && strength == null) continue;
       const { data: cur } = await db.from('daily_checks').select('*').eq('user_id', link.user_id).eq('day', day).maybeSingle();
       const row = {
         user_id: link.user_id,
         day,
         minimum_done: !!cur?.minimum_done || (steps != null && steps >= goal),
-        lifted: !!cur?.lifted,
+        lifted: !!cur?.lifted || (strength != null && strength >= (settings.strength_min_minutes ?? 20)),
         workout_label: cur?.workout_label ?? null,
         ate_out: cur?.ate_out ?? null,
         steps: steps ?? cur?.steps ?? null,
-        strength_minutes: cur?.strength_minutes ?? null,
+        strength_minutes: strength ?? cur?.strength_minutes ?? null,
         sleep_minutes: sleep != null && sleep <= 960 ? sleep : cur?.sleep_minutes ?? null,
         health_synced_at: now,
         updated_at: now,
@@ -189,7 +213,7 @@ Deno.serve(async (req) => {
     const { data: links } = await db.from('google_health_links').select('user_id, refresh_token');
     const results = [];
     for (const l of (links || []) as Link[]) results.push(await syncUser(db, l));
-    return json({ ok: true, results: results.map((r) => ({ user_id: r.user_id, ok: 'ok' in r, error: 'error' in r ? r.error : undefined })) });
+    return json({ ok: true, results: results.map((r) => ({ user_id: r.user_id, ok: 'ok' in r, error: 'error' in r ? r.error : undefined, workouts: 'days' in r && r.days ? Object.fromEntries(Object.entries(r.days).map(([d, v]) => [d, v.workouts])) : undefined })) });
   }
 
   const { data: u } = await db.auth.getUser(bearer);
