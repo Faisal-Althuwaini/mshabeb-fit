@@ -36,7 +36,7 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
       <h2 style={{ margin: 0 }}>🍎 ربط Apple Health</h2>
       <p className="small muted" style={{ margin: 0 }}>
         الخطوات والنوم (من Fitbit عن طريق Google Health) وتمارين الحديد (من Hevy) توصل مشبب تلقائياً عن طريق اختصار بالآيفون.
-        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅»، وتمرين حديد {arN(settings.strength_min_minutes ?? 20)} دقيقة أو أكثر يعلّم «حديد ✅».
+        إذا وصلت هدف الخطوات ينعلّم «أقل شي ✅»، وإذا سجّلت تمرين في Hevy اليوم ينعلّم «حديد ✅».
       </p>
       <div className="row between">
         <span className="small">{connected ? (last ? `✅ آخر مزامنة ${timeAgo(last)}` : '⏳ مربوط، بانتظار أول مزامنة') : '❌ مو مربوط'}</span>
@@ -65,14 +65,14 @@ export default function HealthCard({ settings, bundle, onSaved, toast }: {
           <li>تأكد إن <b>Google Health</b> و <b>Hevy</b> يكتبون في Apple Health (Health ← صورتك ← Apps).</li>
           <li>افتح تطبيق <b>Shortcuts</b> ← <b>+</b> اختصار جديد، سمّه «مشبب».</li>
           <li><b>الخطوات:</b> أضف <b>Find Health Samples</b> ← Type: <b>Steps</b> ← Start Date <b>is today</b>. (إذا فيه فلتر <b>Source</b> اختر Google Health عشان ما تنحسب خطوات الجوال مرتين.) بعدها <b>Calculate Statistics</b> ← <b>Sum</b>.</li>
-          <li><b>الحديد:</b> أضف <b>Find Health Samples</b> ← Type: <b>Workouts</b> ← Start Date <b>is today</b> ← Workout Type <b>Traditional Strength Training</b>. بعدها <b>Get Details</b> ← <b>Duration</b>، ثم <b>Calculate Statistics</b> ← <b>Sum</b>.</li>
+          <li><b>الحديد (Hevy):</b> أضف <b>Find Health Samples</b> ← Type: <b>Active Energy</b> ← Start Date <b>is today</b> ← فلتر <b>Source is Hevy</b>. بعدها <b>Count</b>. إذا العدد أكثر من ٠ يعني تمرنت اليوم.</li>
           <li><b>النوم:</b> أضف <b>Find Health Samples</b> ← Type: <b>Sleep Analysis</b> ← Start Date <b>is in the last 1 day</b> ← Value <b>is not</b> In Bed / Awake. بعدها <b>Get Details</b> ← <b>Duration</b> ← <b>Sum</b>.</li>
           <li>أضف <b>Get Contents of URL</b>:
             <ul>
               <li>URL: الرابط اللي نسخته</li>
               <li>Method: <b>POST</b></li>
               <li>Headers: <code dir="ltr">Authorization</code> = <code dir="ltr">Bearer مفتاحك</code></li>
-              <li>Request Body: <b>JSON</b> بثلاث خانات: <code dir="ltr">steps</code>، <code dir="ltr">strength_minutes</code>، <code dir="ltr">sleep_minutes</code> (كل وحدة نتيجة المجموع حقها)</li>
+              <li>Request Body: <b>JSON</b> بثلاث خانات (Number): <code dir="ltr">steps</code> = مجموع الخطوات، <code dir="ltr">workouts</code> = عدد Hevy، <code dir="ltr">sleep_minutes</code> = مجموع النوم</li>
             </ul>
           </li>
           <li>شغّله مرة، ولازم تشوف «آخر مزامنة الحين» هنا ✅</li>

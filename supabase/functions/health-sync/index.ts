@@ -51,6 +51,11 @@ Deno.serve(async (req) => {
 
   const steps = num(body.steps);
   const strength = toMinutes(num(body.strength_minutes ?? body.strength ?? body.workout_minutes), 600);
+  // Simpler signal for Shortcuts that can't read workout durations: how many Hevy samples
+  // (e.g. its Active Energy entries) exist today, or an explicit lifted flag.
+  const workouts = num(body.workouts ?? body.hevy);
+  const liftedFlag = body.lifted === true || /^(1|true|yes|نعم)$/i.test(String(body.lifted ?? ''));
+  const didLift = (strength != null && strength >= (settings.strength_min_minutes ?? 20)) || (workouts != null && workouts > 0) || liftedFlag;
   const sleepRaw = num(body.sleep_minutes ?? body.sleep);
   const sleepHours = num(body.sleep_hours);
   const sleep = sleepHours != null ? Math.round(sleepHours * 60) : toMinutes(sleepRaw, 1200);
@@ -60,12 +65,11 @@ Deno.serve(async (req) => {
 
   const { data: cur } = await db.from('daily_checks').select('*').eq('user_id', userId).eq('day', day).maybeSingle();
   const goal = settings.steps_goal ?? 6000;
-  const minStrength = settings.strength_min_minutes ?? 20;
   const row = {
     user_id: userId,
     day,
     minimum_done: !!cur?.minimum_done || (steps != null && steps >= goal),
-    lifted: !!cur?.lifted || (strength != null && strength >= minStrength),
+    lifted: !!cur?.lifted || didLift,
     workout_label: cur?.workout_label ?? null,
     ate_out: cur?.ate_out ?? null,
     steps: steps != null ? Math.round(steps) : cur?.steps ?? null,
