@@ -135,7 +135,8 @@ export default function App() {
       no_refresh: 'Google ما عطانا صلاحية دائمة، جرّب الربط مرة ثانية',
       not_configured: 'ربط Google Health مو مجهّز للحين',
     };
-    toast.show(msg[g] ?? 'ما زبط الربط، جرّب مرة ثانية');
+    const why = new URLSearchParams(location.search).get('why');
+    toast.show(`${msg[g] ?? 'ما زبط الربط، جرّب مرة ثانية'}${why ? ` (${why})` : ''}`);
     history.replaceState(null, '', location.pathname);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

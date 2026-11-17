@@ -26,7 +26,8 @@ const cors = {
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' } });
-const back = (result: string) => Response.redirect(`${APP_URL}/settings?google=${result}`, 302);
+const back = (result: string, why = '') =>
+  Response.redirect(`${APP_URL}/settings?google=${result}${why ? `&why=${encodeURIComponent(why.slice(0, 120))}` : ''}`, 302);
 
 type Link = { user_id: number; refresh_token: string };
 type Day = { steps: number | null; sleep: number | null };
@@ -38,7 +39,7 @@ async function token(params: Record<string, string>) {
     body: new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, ...params }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`token ${res.status} ${body.error || ''}`.trim());
+  if (!res.ok) throw new Error(`token ${res.status} ${body.error || ''} ${body.error_description || ''}`.trim());
   return body as { access_token: string; refresh_token?: string; scope?: string };
 }
 
@@ -158,7 +159,7 @@ Deno.serve(async (req) => {
       }).toString();
       return Response.redirect(auth.toString(), 302);
     }
-    if (url.searchParams.get('error')) return back('denied');
+    if (url.searchParams.get('error')) return back('denied', url.searchParams.get('error')!);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     if (!code || !state) return back('error');
@@ -173,10 +174,10 @@ Deno.serve(async (req) => {
       );
       if (error) throw new Error(error.message);
       const r = await syncUser(db, { user_id: st.user_id, refresh_token: t.refresh_token });
-      return back('error' in r ? 'linked_sync_failed' : 'ok');
+      return 'error' in r ? back('linked_sync_failed', r.error) : back('ok');
     } catch (e) {
       console.error('google-health callback', (e as Error).message);
-      return back('error');
+      return back('error', (e as Error).message);
     }
   }
 
